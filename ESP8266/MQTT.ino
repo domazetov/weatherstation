@@ -24,26 +24,46 @@ void callback(char* topic, byte* payload, unsigned int length)
 
 void reconnect()
 {
-  // Loop until we're reconnected
-  Serial.print("Attempting MQTT connection...");
-  // Create a random client ID
-  String clientId = "ESP8266Client-";
-  clientId += String(random(0xffff), HEX);
-  // Attempt to connect
-  if (client.connect(clientId.c_str()))
+  static boolean enable = true;
+  static int counter = 0;
+  if(enable == true)
   {
-    Serial.println("connected");
-    // Once connected, publish an announcement...
-    client.publish("ESP1/status", "online");
-    // ... and resubscribe
-    client.subscribe("ESP1/in");
+    // Loop until we're reconnected
+    Serial.println("#E");
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP8266Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (client.connect(clientId.c_str()))
+    {
+      Serial.println("#F");
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("ESP1/status", "online");
+      // ... and resubscribe
+      client.subscribe("ESP1/in");
+    }
+    else
+    {
+      Serial.println("#G");
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      //delay(5000);
+      enable = false;
+    }
   }
   else
   {
-    Serial.print("failed, rc=");
-    Serial.print(client.state());
-    Serial.println(" try again in 5 seconds");
-    // Wait 5 seconds before retrying
-    delay(5000);
+    Serial.println("#H");
+    counter++;
+    if(counter == 5)
+    {
+      Serial.println("#I");
+      enable = true;
+      counter = 0;
+    }
   }
 }

@@ -16,7 +16,7 @@
 #define BMP280_I2C_ADDRESS  0x76
 #define MSG_BUFFER_SIZE     50
 #ifndef APSSID
-#define APSSID "ESP1_AP"
+#define APSSID "ESP1"
 #define APPSK  "12345678"
 #endif
 // Variables & Functions
@@ -31,7 +31,7 @@ PubSubClient client(espClient);
 
 const char *softap_ssid = APSSID;
 const char *softap_password = APPSK;
-const char *myhostname = "smarthome";
+const char *myhostname = "smarthouse";
 const byte DNS_PORT = 53;
 boolean connect;
 unsigned long lastConnectTry = 0;
@@ -98,8 +98,10 @@ void connect_to_wifi()
 
 void loop()
 {
+  Serial.println("#1");
   if(connect)
   {
+    Serial.println("#2");
     Serial.println("Connection requested.");
     connect = false;
     connect_to_wifi();
@@ -109,16 +111,19 @@ void loop()
   unsigned int s = WiFi.status();
   if (s == 0 && millis() > (lastConnectTry + 60000))
   {
+    Serial.println("#3");
     connect = true;
   }
 
   if (status != s) 
   {
+    Serial.println("#4");
     Serial.print("Status: ");
     Serial.println(s);
     status = s;
     if (s == WL_CONNECTED) 
     {
+      Serial.println("#5");
       /* Just connected to WLAN */
       Serial.println("");
       Serial.print("Connected to ");
@@ -128,10 +133,12 @@ void loop()
       // Setup MDNS responder
       if (!MDNS.begin(myhostname)) 
       {
+        Serial.println("#6");
         Serial.println("Error setting up MDNS responder!");
       }
       else 
       {
+        Serial.println("#7");
         Serial.println("mDNS responder started");
         // Add service to MDNS-SD
         MDNS.addService("http", "tcp", 80);
@@ -139,36 +146,42 @@ void loop()
     }
     else if(s == WL_NO_SSID_AVAIL) 
     {
+      Serial.println("#8");
       WiFi.disconnect();
     }
   }
 
   if (s == WL_CONNECTED) 
   {
+    Serial.println("#9");
     MDNS.update();
   }
 
   delay(2000);
   if (s == WL_CONNECTED)
   {
+    Serial.println("#A");
     if (!client.connected())
     {
+      Serial.println("#B");
       reconnect();
     }
     client.loop();
 
     if (client.connected())
     {
+      Serial.println("#C");
       unsigned long now = millis();
       if (now - lastMsg > 2000)
       {
+        Serial.println("#D");
         lastMsg = now;
         read_dht();
         read_bmp();
         Serial.println("\n");
+        delay(10000);
       }
     }
-    delay(10000);
     // ESP.deepSleep(60e6);
   }
   //DNS

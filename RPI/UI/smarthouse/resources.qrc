@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/">
+        <file>gui/Styles.qss</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>gui/fullscreen.png</file>
+        <file>gui/exit.png</file>
+        <file>gui/minimize.png</file>
+    </qresource>
+</RCC>
