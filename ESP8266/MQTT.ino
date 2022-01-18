@@ -40,9 +40,9 @@ void reconnect()
       Serial.println("#F");
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("ESP1/status", "online");
+      //client.publish("ESP1/status", "online");
       // ... and resubscribe
-      client.subscribe("ESP1/in");
+      //client.subscribe("ESP1/in");
     }
     else
     {

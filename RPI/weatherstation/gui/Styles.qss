@@ -13,7 +13,7 @@ QLabel
 {
         background-color: qlineargradient(spread:repeat, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(54, 54, 54, 255),stop:1 rgba(30, 30, 30, 255));
         color: #ffffff;
-        min-width: 80px;
+
         border-style: solid;
         border-width: 1px;
         border-radius: 3px;
@@ -55,6 +55,11 @@ QMenuBar::item:pressed
 	border: 1px solid #b78620;
 	color: #fff;
 
+}
+
+QStatusBar::item
+{
+        border: none;
 }
 
 

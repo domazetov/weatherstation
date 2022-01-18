@@ -15,10 +15,12 @@
 // Macros
 #define BMP280_I2C_ADDRESS  0x76
 #define MSG_BUFFER_SIZE     50
+#define SLEEP_PIN           13
 #ifndef APSSID
 #define APSSID "ESP1"
 #define APPSK  "12345678"
 #endif
+
 // Variables & Functions
 DHTesp dht;
 Adafruit_BMP280 bmp;
@@ -42,9 +44,16 @@ char ssid[33] = "";
 char password[65] = "";
 char mqtt_server[20] = "";
 
+char topic_dht_t[14];
+char topic_dht_h[14];
+char topic_bmp_t[14];
+char topic_bmp_p[14];
+
 void setup()
 {
-  pinMode(BUILTIN_LED, OUTPUT); 
+  pinMode(SLEEP_PIN, INPUT);
+  pinMode(BUILTIN_LED, OUTPUT);
+  
   Serial.begin(115200);
   Serial.println("Configuring AP.");
 
@@ -84,6 +93,16 @@ void setup()
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+
+  String temp_string = String(APSSID) + String("/DHT/humi");
+  temp_string.toCharArray(topic_dht_h,14);
+  temp_string = String(APSSID) + String("/DHT/temp");
+  temp_string.toCharArray(topic_dht_t,14);
+  temp_string = String(APSSID) + String("/BMP/temp");
+  temp_string.toCharArray(topic_bmp_t,14);
+  temp_string = String(APSSID) + String("/BMP/pres");
+  temp_string.toCharArray(topic_bmp_p,14);
 }
 
 void connect_to_wifi()
@@ -179,10 +198,19 @@ void loop()
         read_dht();
         read_bmp();
         Serial.println("\n");
-        delay(10000);
       }
     }
-    // ESP.deepSleep(60e6);
+    if(digitalRead(SLEEP_PIN))
+    {
+    //ESP.deepSleep(60e6);
+      Serial.println("deepSleep");
+      ESP.deepSleep(5e6);
+    }
+    else
+    {
+      Serial.println("delay");
+      delay(1000);
+    }
   }
   //DNS
   dnsServer.processNextRequest();

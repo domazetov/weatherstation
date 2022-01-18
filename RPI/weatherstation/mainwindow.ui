@@ -36,13 +36,6 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QPushButton" name="add_device">
-        <property name="text">
-         <string>Add device</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPlainTextEdit" name="device_name">
         <property name="minimumSize">
          <size>
@@ -68,11 +61,14 @@
         <property name="sizeAdjustPolicy">
          <enum>QAbstractScrollArea::AdjustIgnored</enum>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
         <property name="centerOnScroll">
          <bool>true</bool>
         </property>
         <property name="placeholderText">
-         <string>Device name</string>
+         <string>Room name</string>
         </property>
        </widget>
       </item>
@@ -96,8 +92,18 @@
           <height>24</height>
          </size>
         </property>
+        <property name="tabChangesFocus">
+         <bool>true</bool>
+        </property>
         <property name="placeholderText">
          <string>Device ID</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="add_device">
+        <property name="text">
+         <string>Add device</string>
         </property>
        </widget>
       </item>
@@ -152,6 +158,9 @@
       </property>
      </widget>
     </item>
+    <item>
+     <widget class="QWidget" name="widget" native="true"/>
+    </item>
    </layout>
   </widget>
   <widget class="QToolBar" name="toolBar">
@@ -195,6 +204,7 @@
    <addaction name="actionFullscreen"/>
    <addaction name="actionminimize"/>
   </widget>
+  <widget class="QStatusBar" name="statusBar"/>
   <action name="actionFullscreen">
    <property name="icon">
     <iconset resource="resources.qrc">
