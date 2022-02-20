@@ -30,6 +30,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_client->setPort(1883);
     m_client->connectToHost();
 
+    db.setHostName("localhost");
+    db.setUserName("zero");
+    db.setPassword("micakica");
+    db.setDatabaseName("wstation");
+
     QObject::connect(ui->add_device, &QPushButton::clicked, this, &MainWindow::onAddWidget);
     connect(m_client, &QMqttClient::messageReceived, this, &MainWindow::onMessageReceived);
 
@@ -72,9 +77,45 @@ float MainWindow::str2float(const char* payload)
     return data.value;
 }
 
+bool MainWindow::createConnection()
+{
+    bool ok=db.open();
+
+    QString query = "CREATE TABLE test ("
+                    "VALUE double,"
+                    "Type  VARCHAR(10),"
+                    "Time DATETIME);";
+
+    QSqlQuery qry;
+    if(!qry.exec(query))
+    {
+        qDebug() <<"error creating table";
+    }
+
+
+    qry.prepare("INSERT INTO test ("
+                "VALUE,"
+                "Type,"
+                "Time)"
+                "VALUES (?,?,?);");
+
+    qry.addBindValue(69);
+    qry.addBindValue("LeL");
+    qry.addBindValue(QDateTime::fromString("2022-02-12 12:45:30", "yyyy-MM-dd hh:mm:ss"));
+
+    if(!qry.exec())
+    {
+        qDebug() <<"error adding values";
+    }
+    db.close();
+
+    return ok;
+}
+
 void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
 {
 //    qDebug() << "Topic:" << topic.name() << "Message:" << message;
+
     Q_FOREACH(QProgressBar* bar, findChildren<QProgressBar*>())
     {
         if(bar->objectName()==(topic.name()))
@@ -155,7 +196,7 @@ QSensor dht_humidity()
     QSensor dht_humi;
 
     dht_humi.sensor_label = new QLabel("Humidity");
-    dht_humi.sensor_label->setStyleSheet("QLabel {min-width: 80px;}");
+    dht_humi.sensor_label->setStyleSheet("QLabel {min-width: 120px;}");
     dht_humi.sensor_bar = new QProgressBar();
     dht_humi.sensor_bar->setFormat("Waiting for update");
     dht_humi.sensor_bar->setMinimum(0);
@@ -171,7 +212,7 @@ QSensor dht_temperature()
     QSensor dht_temp;
 
     dht_temp.sensor_label = new QLabel("Temperature 1:");
-    dht_temp.sensor_label->setStyleSheet("QLabel {min-width: 80px;}");
+    dht_temp.sensor_label->setStyleSheet("QLabel {min-width: 120px;}");
     dht_temp.sensor_bar = new QProgressBar();
     dht_temp.sensor_bar->setFormat("Waiting for update");
     dht_temp.sensor_bar->setMinimum(0);
@@ -187,7 +228,7 @@ QSensor bmp_temperature()
     QSensor bmp_temp;
 
     bmp_temp.sensor_label = new QLabel("Temperature 2:");
-    bmp_temp.sensor_label->setStyleSheet("QLabel {min-width: 80px;}");
+    bmp_temp.sensor_label->setStyleSheet("QLabel {min-width: 120px;}");
     bmp_temp.sensor_bar = new QProgressBar();
     bmp_temp.sensor_bar->setFormat("Waiting for update");
     bmp_temp.sensor_bar->setMinimum(0);
@@ -203,7 +244,7 @@ QSensor bmp_pressure()
     QSensor bmp_pres;
 
     bmp_pres.sensor_label = new QLabel("Pressure:");
-    bmp_pres.sensor_label->setStyleSheet("QLabel {min-width: 80px;}");
+    bmp_pres.sensor_label->setStyleSheet("QLabel {min-width: 120px;}");
     bmp_pres.sensor_bar = new QProgressBar();
     bmp_pres.sensor_bar->setFormat("Waiting for update");
     bmp_pres.sensor_bar->setMinimum(950);
@@ -261,6 +302,11 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 
 void MainWindow::onAddWidget()
 {
+    if(createConnection())
+    {
+        qDebug() <<"SQL CONNECTION";
+    }
+
     if(ui->device_id->toPlainText().isEmpty())
     {
         pop_message("Warning", "Device ID is required");
