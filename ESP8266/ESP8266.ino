@@ -14,7 +14,7 @@
 
 // Macros
 #define BMP280_I2C_ADDRESS  0x76
-#define MSG_BUFFER_SIZE     50
+#define MSG_BUFFER_SIZE     40
 #define SLEEP_PIN           13
 #ifndef APSSID
 #define APSSID "ESP1"
@@ -44,10 +44,7 @@ char ssid[33] = "";
 char password[65] = "";
 char mqtt_server[20] = "";
 
-char topic_dht_t[14];
-char topic_dht_h[14];
-char topic_bmp_t[14];
-char topic_bmp_p[14];
+char wstation_topic[11];
 
 void setup()
 {
@@ -95,14 +92,8 @@ void setup()
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
 
-  String temp_string = String(APSSID) + String("/DHT/humi");
-  temp_string.toCharArray(topic_dht_h,14);
-  temp_string = String(APSSID) + String("/DHT/temp");
-  temp_string.toCharArray(topic_dht_t,14);
-  temp_string = String(APSSID) + String("/BMP/temp");
-  temp_string.toCharArray(topic_bmp_t,14);
-  temp_string = String(APSSID) + String("/BMP/pres");
-  temp_string.toCharArray(topic_bmp_p,14);
+  String temp_string = String(APSSID) + String("/data");
+  temp_string.toCharArray(wstation_topic, sizeof(wstation_topic));
 }
 
 void connect_to_wifi()
@@ -195,8 +186,7 @@ void loop()
       {
         Serial.println("#D");
         lastMsg = now;
-        read_dht();
-        read_bmp();
+        read_data();
         Serial.println("\n");
       }
     }

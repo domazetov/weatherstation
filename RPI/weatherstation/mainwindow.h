@@ -30,8 +30,8 @@ public:
     void WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout);
     QLabel* status = new QLabel;
     float str2float(const char* payload);
-    bool createConnection();
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+//    bool createConnection();
+//    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
 
 private slots:
 

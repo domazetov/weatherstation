@@ -30,10 +30,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_client->setPort(1883);
     m_client->connectToHost();
 
-    db.setHostName("localhost");
-    db.setUserName("zero");
-    db.setPassword("micakica");
-    db.setDatabaseName("wstation");
+//    db.setHostName("localhost");
+//    db.setUserName("zero");
+//    db.setPassword("12345678");
+//    db.setDatabaseName("wstation");
 
     QObject::connect(ui->add_device, &QPushButton::clicked, this, &MainWindow::onAddWidget);
     connect(m_client, &QMqttClient::messageReceived, this, &MainWindow::onMessageReceived);
@@ -77,71 +77,81 @@ float MainWindow::str2float(const char* payload)
     return data.value;
 }
 
-bool MainWindow::createConnection()
+//bool MainWindow::createConnection()
+//{
+//    bool ok=db.open();
+
+//    QString query = "CREATE TABLE test ("
+//                    "VALUE double,"
+//                    "Type  VARCHAR(10),"
+//                    "Time DATETIME);";
+
+//    QSqlQuery qry;
+//    if(!qry.exec(query))
+//    {
+//        qDebug() <<"error creating table";
+//    }
+
+
+//    qry.prepare("INSERT INTO test ("
+//                "VALUE,"
+//                "Type,"
+//                "Time)"
+//                "VALUES (?,?,?);");
+
+//    qry.addBindValue(69);
+//    qry.addBindValue("LeL");
+//    qry.addBindValue(QDateTime::fromString("2022-02-12 12:45:30", "yyyy-MM-dd hh:mm:ss"));
+
+//    if(!qry.exec())
+//    {
+//        qDebug() <<"error adding values";
+//    }
+//    db.close();
+
+//    return ok;
+//}
+
+void find_progressbar(QProgressBar* bar, QString unit, float value)
 {
-    bool ok=db.open();
-
-    QString query = "CREATE TABLE test ("
-                    "VALUE double,"
-                    "Type  VARCHAR(10),"
-                    "Time DATETIME);";
-
-    QSqlQuery qry;
-    if(!qry.exec(query))
+    if((bar->minimum() <= value) && (bar->maximum() >= value))
     {
-        qDebug() <<"error creating table";
+        bar->setValue(value);
+        bar->setFormat(QString::number(value) + unit);
     }
-
-
-    qry.prepare("INSERT INTO test ("
-                "VALUE,"
-                "Type,"
-                "Time)"
-                "VALUES (?,?,?);");
-
-    qry.addBindValue(69);
-    qry.addBindValue("LeL");
-    qry.addBindValue(QDateTime::fromString("2022-02-12 12:45:30", "yyyy-MM-dd hh:mm:ss"));
-
-    if(!qry.exec())
+    else
     {
-        qDebug() <<"error adding values";
+        bar->setValue(bar->minimum());
+        bar->setFormat("Error, bad value");
     }
-    db.close();
-
-    return ok;
 }
 
 void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
 {
 //    qDebug() << "Topic:" << topic.name() << "Message:" << message;
+    float value = 0;
 
     Q_FOREACH(QProgressBar* bar, findChildren<QProgressBar*>())
     {
-        if(bar->objectName()==(topic.name()))
+        if(bar->objectName()==(topic.name()+"/DHTH"))
         {
-            float value = str2float(message.data());
-            if((bar->minimum() <= value) && (bar->maximum() >= value))
-            {
-                bar->setValue(value);
-                if(topic.name().contains("temp"))
-                {
-                    bar->setFormat(QString::number(value) + "°C");
-                }
-                else if(topic.name().contains("pres"))
-                {
-                    bar->setFormat(QString::number(value) + "hPa");
-                }
-                else if(topic.name().contains("humi"))
-                {
-                    bar->setFormat(QString::number(value) + "%");
-                }
-            }
-            else
-            {
-                bar->setValue(bar->minimum());
-                bar->setFormat("Error, bad value");
-            }
+            value = str2float(message.data());
+            find_progressbar(bar, "hPa", value);
+        }
+        else if(bar->objectName()==(topic.name()+"/DHTT"))
+        {
+            value = str2float(message.data()+8);
+            find_progressbar(bar, "°C", value);
+        }
+        else if(bar->objectName()==(topic.name()+"/BMPT"))
+        {
+            value = str2float(message.data()+16);
+            find_progressbar(bar, "°C", value);
+        }
+        else if(bar->objectName()==(topic.name()+"/BMPP"))
+        {
+            value = str2float(message.data()+24);
+            find_progressbar(bar, "%", value);
         }
     }
 }
@@ -280,10 +290,10 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     QSensor bmp_temp = bmp_temperature();
     QSensor bmp_pres = bmp_pressure();
 
-    dht_humi.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHT/humi");
-    dht_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHT/temp");
-    bmp_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMP/temp");
-    bmp_pres.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMP/pres");
+    dht_humi.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/DHTH");
+    dht_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/DHTT");
+    bmp_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/BMPT");
+    bmp_pres.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/BMPP");
 
     layout->addRow(device_name);
     layout->addRow(dht_humi.sensor_label, dht_humi.sensor_bar);
@@ -302,10 +312,10 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 
 void MainWindow::onAddWidget()
 {
-    if(createConnection())
-    {
-        qDebug() <<"SQL CONNECTION";
-    }
+//    if(createConnection())
+//    {
+//        qDebug() <<"SQL CONNECTION";
+//    }
 
     if(ui->device_id->toPlainText().isEmpty())
     {
@@ -331,19 +341,16 @@ void MainWindow::onAddWidget()
         {
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_1->layout());
             frame_1_counter++;
-            //qDebug()() << "f1--" << frame_1_counter;
         }
         else if(MAX_DEVICES_PER_ROW > frame_2_counter)
         {
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_2->layout());
             frame_2_counter++;
-            //qDebug()() << "f2++" << frame_2_counter;
         }
         else if(MAX_DEVICES_PER_ROW > frame_3_counter)
         {
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_3->layout());
             frame_3_counter++;
-            //qDebug()() << "f3++" << frame_3_counter;
         }
         WeatherStation(layout, Hlayout);
 
@@ -364,7 +371,6 @@ void MainWindow::onRemoveWidget()
 
     m_client->unsubscribe(topic);
     TopicHash.remove(button);
-    //qDebug()() << "Removed" << topic;
 
     while(layout->count() != 0 )
     {
@@ -376,17 +382,14 @@ void MainWindow::onRemoveWidget()
     if(Hlayout->objectName() == "horizontalLayout_1")
     {
         frame_1_counter--;
-        //qDebug()() << "f1--" << frame_1_counter;
     }
     else if(Hlayout->objectName() == "horizontalLayout_2")
     {
         frame_2_counter--;
-        //qDebug()() << "f2--" << frame_2_counter;
     }
     else if(Hlayout->objectName() == "horizontalLayout_3")
     {
         frame_3_counter--;
-        //qDebug()() << "f3--" << frame_3_counter;
     }
 
 }

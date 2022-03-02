@@ -1,54 +1,49 @@
-void read_dht()
+void read_data()
 {
-    char buffer[MSG_BUFFER_SIZE];
+  int retry_count = 0;
+  char data_buffer[MSG_BUFFER_SIZE];
+  float dhth = dht.getHumidity();
 
-    delay(dht.getMinimumSamplingPeriod());
+  while(isnan(dhth))
+  {
+    if(retry_count == 5)
+    {
+      Serial.println("DHT retry timeout");
+      break;
+    }
+    retry_count++;
+    Serial.println("NaN: ");
+    Serial.print(retry_count);
+    delay(3000);
+    dhth = dht.getHumidity();
+  }
 
-    float humidity = dht.getHumidity();
-    float temperature = dht.getTemperature();
-    //todo: Remove Serial.prints below
-    Serial.print("\nDHT: ");
-    Serial.print(dht.getStatusString());
-    Serial.print("\tHumidity: ");
-    Serial.print(humidity, 1);
-    Serial.print("%");
-    Serial.print("\t\tTemperature: ");
-    Serial.print(temperature, 1);
-    Serial.print("C");
+  float dhtt = dht.getTemperature();
+  float bmpt = bmp.readTemperature();
+  float bmpp = bmp.readPressure()/100;
 
-    snprintf (buffer, MSG_BUFFER_SIZE, "%X", *(uint32_t*)&humidity);
-    Serial.print("\nPublish humidity: ");
-    Serial.print(buffer);
-    client.publish(topic_dht_h, buffer);
+  Serial.print("\nDHT: ");
+  Serial.print("\tHumidity: ");
+  Serial.print(dhth, 2);
+  Serial.print("%");
+  Serial.print("\tTemperature: ");
+  Serial.print(dhtt, 2);
+  Serial.print("C");
+  Serial.print("\nBMP280: ");
+  Serial.print("Temperature: ");
+  Serial.print(bmpt, 2);
+  Serial.print("C");
+  Serial.print("\tPressure: ");
+  Serial.print(bmpp, 2);
+  Serial.print("hPa\n");
 
-    snprintf (buffer, MSG_BUFFER_SIZE, "%X", *(uint32_t*)&temperature);
-    Serial.print("\tPublish temperature: ");
-    Serial.print(buffer);
-    client.publish(topic_dht_t, buffer);
-}
+  snprintf(data_buffer, 33, "%08X%08X%08X%08X", *(uint32_t*)&dhth, *(uint32_t*)&dhtt, *(uint32_t*)&bmpt, *(uint32_t*)&bmpp);
+ 
+  Serial.println(*(uint32_t*)&dhth, HEX);
+  Serial.println(*(uint32_t*)&dhtt, HEX);
+  Serial.println(*(uint32_t*)&bmpt, HEX);
+  Serial.println(*(uint32_t*)&bmpp, HEX);
+  Serial.println(data_buffer);
 
-void read_bmp()
-{
-    char buffer[MSG_BUFFER_SIZE];
-
-    float temperature = bmp.readTemperature();
-    float pressure = bmp.readPressure()/100;
-
-    Serial.print("\nBMP280: ");
-    Serial.print("Temperature: ");
-    Serial.print(temperature, 1);
-    Serial.print("C");
-    Serial.print("\tPressure: ");
-    Serial.print(pressure, 1);
-    Serial.print("hPa");
-
-    snprintf (buffer, MSG_BUFFER_SIZE, "%X", *(uint32_t*)&temperature);
-    Serial.print("\nPublish message: ");
-    Serial.print(buffer);
-    client.publish(topic_bmp_t, buffer);
-
-    snprintf (buffer, MSG_BUFFER_SIZE, "%X", *(uint32_t*)&pressure);
-    Serial.print("\tPublish message: ");
-    Serial.print(buffer);
-    client.publish(topic_bmp_p, buffer);
+  client.publish(wstation_topic, data_buffer);
 }
