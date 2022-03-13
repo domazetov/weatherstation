@@ -30,10 +30,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_client->setPort(1883);
     m_client->connectToHost();
 
-//    db.setHostName("localhost");
-//    db.setUserName("zero");
-//    db.setPassword("12345678");
-//    db.setDatabaseName("wstation");
+    db.setHostName("localhost");
+    db.setUserName("zero");
+    db.setPassword("12345678");
+    db.setDatabaseName("wstation");
 
     QObject::connect(ui->add_device, &QPushButton::clicked, this, &MainWindow::onAddWidget);
     connect(m_client, &QMqttClient::messageReceived, this, &MainWindow::onMessageReceived);
@@ -62,7 +62,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
     }
 }
 
-float MainWindow::str2float(const char* payload)
+float str2float(const char* payload)
 {
     union floatAsBytes{
         float value;
@@ -73,46 +73,11 @@ float MainWindow::str2float(const char* payload)
     {
         sscanf(payload+6-2*i, "%2hhx", &data.bytes[i]);
     }
-//    qDebug() << data.value;
+
     return data.value;
 }
 
-//bool MainWindow::createConnection()
-//{
-//    bool ok=db.open();
-
-//    QString query = "CREATE TABLE test ("
-//                    "VALUE double,"
-//                    "Type  VARCHAR(10),"
-//                    "Time DATETIME);";
-
-//    QSqlQuery qry;
-//    if(!qry.exec(query))
-//    {
-//        qDebug() <<"error creating table";
-//    }
-
-
-//    qry.prepare("INSERT INTO test ("
-//                "VALUE,"
-//                "Type,"
-//                "Time)"
-//                "VALUES (?,?,?);");
-
-//    qry.addBindValue(69);
-//    qry.addBindValue("LeL");
-//    qry.addBindValue(QDateTime::fromString("2022-02-12 12:45:30", "yyyy-MM-dd hh:mm:ss"));
-
-//    if(!qry.exec())
-//    {
-//        qDebug() <<"error adding values";
-//    }
-//    db.close();
-
-//    return ok;
-//}
-
-void find_progressbar(QProgressBar* bar, QString unit, float value)
+void fill_progressbar(QProgressBar* bar, QString unit, float value)
 {
     if((bar->minimum() <= value) && (bar->maximum() >= value))
     {
@@ -128,32 +93,69 @@ void find_progressbar(QProgressBar* bar, QString unit, float value)
 
 void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
 {
-//    qDebug() << "Topic:" << topic.name() << "Message:" << message;
     float value = 0;
+    bool ok=db.open();
+    if(ok)
+    {
+        qDebug() << "YES";
+    }
+    else
+    {
+        qDebug() << "NO";
+    }
+
+    QSqlQuery qry;
+    QString device = topic.name();
+    QDateTime dateTime = dateTime.currentDateTime();
+
+    qry.prepare("INSERT INTO test ("
+                "room,"
+                "device,"
+                "dhtt,"
+                "dhth,"
+                "bmpt,"
+                "bmpp,"
+                "timestamp)"
+                "VALUES (:room, :device, :dhtt, :dhth, :bmpt, :bmpp, :timestamp);");
 
     Q_FOREACH(QProgressBar* bar, findChildren<QProgressBar*>())
     {
-        if(bar->objectName()==(topic.name()+"/DHTH"))
+        if(bar->objectName()==(device + "/DHTH"))
         {
             value = str2float(message.data());
-            find_progressbar(bar, "hPa", value);
+            fill_progressbar(bar, "%", value);
+            qry.bindValue(":dhth", value);
         }
-        else if(bar->objectName()==(topic.name()+"/DHTT"))
+        else if(bar->objectName()==(device + "/DHTT"))
         {
             value = str2float(message.data()+8);
-            find_progressbar(bar, "°C", value);
+            fill_progressbar(bar, "°C", value);
+            qry.bindValue(":dhtt", value);
         }
-        else if(bar->objectName()==(topic.name()+"/BMPT"))
+        else if(bar->objectName()==(device + "/BMPT"))
         {
             value = str2float(message.data()+16);
-            find_progressbar(bar, "°C", value);
+            fill_progressbar(bar, "°C", value);
+            qry.bindValue(":bmpt", value);
         }
-        else if(bar->objectName()==(topic.name()+"/BMPP"))
+        else if(bar->objectName()==(device + "/BMPP"))
         {
             value = str2float(message.data()+24);
-            find_progressbar(bar, "%", value);
+            fill_progressbar(bar, "hPA", value);
+            qry.bindValue(":bmpp", value);
         }
     }
+
+    device.replace("/data", "");
+    qry.bindValue(":device", device);
+    qry.bindValue(":room", RoomHash.value(device));
+    qry.bindValue(":timestamp", dateTime.toString("yyyy-MM-dd hh:mm:ss"));
+
+    if(!qry.exec())
+    {
+        pop_message("Critical", "Unable to write data to database");
+    }
+    db.close();
 }
 
 void MainWindow::pop_message(QString title, QString message)
@@ -302,6 +304,7 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     layout->addRow(bmp_pres.sensor_label, bmp_pres.sensor_bar);
     layout->addRow(remove_device);
 
+    RoomHash.insert(ui->device_id->toPlainText(), device_name->text());
     LayoutHash.insert(remove_device, layout);
     HLayoutHash.insert(remove_device, Hlayout);
     TopicHash.insert(remove_device, ui->device_id->toPlainText());
@@ -312,11 +315,6 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 
 void MainWindow::onAddWidget()
 {
-//    if(createConnection())
-//    {
-//        qDebug() <<"SQL CONNECTION";
-//    }
-
     if(ui->device_id->toPlainText().isEmpty())
     {
         pop_message("Warning", "Device ID is required");
@@ -369,7 +367,7 @@ void MainWindow::onRemoveWidget()
     QHBoxLayout* Hlayout = HLayoutHash.value(button);
     QString topic = TopicHash.value(button);
 
-    m_client->unsubscribe(topic);
+    m_client->unsubscribe(topic + "/#");
     TopicHash.remove(button);
 
     while(layout->count() != 0 )
@@ -409,13 +407,13 @@ void MainWindow::on_actionFullscreen_triggered()
 }
 
 
-void MainWindow::on_actionminimize_triggered()
+void MainWindow::on_actionMinimize_triggered()
 {
     this->setWindowState(Qt::WindowMinimized);
     toggle_fullscreen = false;
 }
 
-void MainWindow::on_actionexit_triggered()
+void MainWindow::on_actionExit_triggered()
 {
     close();
 }

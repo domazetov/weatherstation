@@ -212,9 +212,9 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionexit"/>
+   <addaction name="actionExit"/>
    <addaction name="actionFullscreen"/>
-   <addaction name="actionminimize"/>
+   <addaction name="actionMinimize"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionFullscreen">
@@ -232,25 +232,25 @@
     <string>Ctrl+F</string>
    </property>
   </action>
-  <action name="actionminimize">
+  <action name="actionMinimize">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/icons/gui/minimize.png</normaloff>:/icons/gui/minimize.png</iconset>
    </property>
    <property name="text">
-    <string>minimize</string>
+    <string>Minimize</string>
    </property>
    <property name="toolTip">
     <string>Minimize application</string>
    </property>
   </action>
-  <action name="actionexit">
+  <action name="actionExit">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/icons/gui/exit.png</normaloff>:/icons/gui/exit.png</iconset>
    </property>
    <property name="text">
-    <string>exit</string>
+    <string>Exit</string>
    </property>
    <property name="toolTip">
     <string>Exit application</string>
