@@ -95,13 +95,9 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
 {
     float value = 0;
     bool ok=db.open();
-    if(ok)
+    if(!ok)
     {
-        qDebug() << "YES";
-    }
-    else
-    {
-        qDebug() << "NO";
+        pop_message("Critical", "Unable to open database");
     }
 
     QSqlQuery qry;

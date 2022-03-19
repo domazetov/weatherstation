@@ -8,10 +8,10 @@
 #include <QTimer>
 #include <QMouseEvent>
 #include <QtWidgets>
-#include <QtDebug>
 #include <QSqlDatabase>
 #include <QtSql>
 #include <QFile>
+//#include <QtDebug>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

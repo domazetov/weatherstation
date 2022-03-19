@@ -1,4 +1,4 @@
-// Libraries
+//Libraries
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -11,17 +11,26 @@
 #include <SPI.h>
 #include <Adafruit_BMP280.h>
 #include <inttypes.h>
+#include <NoDelay.h>
 
-// Macros
+//Macros
+#define DEVICEID            "WSX"
+#ifndef APSSID
+#define APSSID              "WeatherStationX"
+#define APPSK               "12345678"
+#endif
+#define LOG                 true
+#define LOG_SERIAL          if(LOG)Serial
 #define BMP280_I2C_ADDRESS  0x76
 #define MSG_BUFFER_SIZE     40
 #define SLEEP_PIN           13
-#ifndef APSSID
-#define APSSID "ESP1"
-#define APPSK  "12345678"
-#endif
+#define DEEPSLEEP_TIME      300000000   //5minutes (μs)
+#define NORMALSLEEP         3000        //5seconds (ms)
+#define PUBLISH_SLEEP       2000        //2seconds (ms)
+#define RECONNECT_TIMEOUT   10000       //10seconds (ms)
+#define CONNECT_TIMEOUT     60000       //60seconds (ms)
 
-// Variables & Functions
+//Variables & Functions
 DHTesp dht;
 Adafruit_BMP280 bmp;
 DNSServer dnsServer;
@@ -33,177 +42,144 @@ PubSubClient client(espClient);
 
 const char *softap_ssid = APSSID;
 const char *softap_password = APPSK;
-const char *myhostname = "smarthouse";
+const char *myhostname = APSSID;
 const byte DNS_PORT = 53;
 boolean connect;
-unsigned long lastConnectTry = 0;
+unsigned long lastConnectAttempt = 0;
 unsigned int status = WL_IDLE_STATUS;
 unsigned long lastMsg = 0;
+unsigned long lastReconnectAttempt = 0;
 int value = 0;
 char ssid[33] = "";
 char password[65] = "";
 char mqtt_server[20] = "";
-
 char wstation_topic[11];
 
 void setup()
 {
-  pinMode(SLEEP_PIN, INPUT);
-  pinMode(BUILTIN_LED, OUTPUT);
-  
-  Serial.begin(115200);
-  Serial.println("Configuring AP.");
+	pinMode(SLEEP_PIN, INPUT);
+	pinMode(BUILTIN_LED, OUTPUT);
 
-  WiFi.softAPConfig(apip, apip, netmask);
-  WiFi.softAP(softap_ssid, softap_password);
-  delay(500);
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
+	LOG_SERIAL.begin(115200);
+	LOG_SERIAL.println("Configuring AP.");
 
-  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-  dnsServer.start(DNS_PORT, "*", apip);
+	WiFi.softAPConfig(apip, apip, netmask);
+	WiFi.softAP(softap_ssid, softap_password);
+	delay(500);
+	LOG_SERIAL.print("AP IP address: ");
+	LOG_SERIAL.println(WiFi.softAPIP());
 
-  server.on("/", handleWifi);
-  server.on("/wifi", handleWifi);
-  server.on("/wifisave", handleWifiSave);
-  server.onNotFound(handleNotFound);
-  server.begin();
-  Serial.println("HTTP server started.");
+	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+	dnsServer.start(DNS_PORT, "*", apip);
 
-  load_from_eeprom();
-  connect = strlen(ssid) > 0;
+	server.on("/", handleWifi);
+	server.on("/wifi", handleWifi);
+	server.on("/wifisave", handleWifiSave);
+	server.onNotFound(handleNotFound);
+	server.begin();
+	LOG_SERIAL.println("HTTP server started.");
 
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
+	load_from_eeprom();
+	connect = strlen(ssid) > 0;
 
-  dht.setup(2, DHTesp::DHT11);
+	client.setServer(mqtt_server, 1883);
 
-  if (!bmp.begin(BMP280_I2C_ADDRESS))
-  {
-    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
-    while (1) delay(10);
-  }
+	dht.setup(2, DHTesp::DHT11);
 
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+	if (!bmp.begin(BMP280_I2C_ADDRESS))
+	{
+		LOG_SERIAL.println("Could not find a valid BMP280 sensor, check wiring or try a different address!");
+		while (1) delay(10);
+	}
 
+	bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+					Adafruit_BMP280::SAMPLING_X2,
+					Adafruit_BMP280::SAMPLING_X16,
+					Adafruit_BMP280::FILTER_X16,
+					Adafruit_BMP280::STANDBY_MS_500);
 
-  String temp_string = String(APSSID) + String("/data");
-  temp_string.toCharArray(wstation_topic, sizeof(wstation_topic));
-}
-
-void connect_to_wifi()
-{
-  Serial.println("Connecting as WiFi client.");
-  WiFi.disconnect();
-  WiFi.begin(ssid, password);
-  int connRes = WiFi.waitForConnectResult();
-  Serial.print("Connection status: ");
-  Serial.println(connRes);
+	String temp_string = String(DEVICEID) + String("/data");
+	temp_string.toCharArray(wstation_topic, sizeof(wstation_topic));
 }
 
 void loop()
 {
-  Serial.println("#1");
-  if(connect)
-  {
-    Serial.println("#2");
-    Serial.println("Connection requested.");
-    connect = false;
-    connect_to_wifi();
-    lastConnectTry = millis();
-  }
+	if(connect)
+	{
+		LOG_SERIAL.println("Connection requested.");
+		connect = false;
+		connect_to_wifi();
+		lastConnectAttempt = millis();
+	}
 
-  unsigned int s = WiFi.status();
-  if (s == 0 && millis() > (lastConnectTry + 60000))
-  {
-    Serial.println("#3");
-    connect = true;
-  }
+	unsigned int s = WiFi.status();
+	if (s == 0 && millis() > (lastConnectAttempt + CONNECT_TIMEOUT))
+	{
+		connect = true;
+	}
 
-  if (status != s) 
-  {
-    Serial.println("#4");
-    Serial.print("Status: ");
-    Serial.println(s);
-    status = s;
-    if (s == WL_CONNECTED) 
-    {
-      Serial.println("#5");
-      /* Just connected to WLAN */
-      Serial.println("");
-      Serial.print("Connected to ");
-      Serial.println(ssid);
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
-      // Setup MDNS responder
-      if (!MDNS.begin(myhostname)) 
-      {
-        Serial.println("#6");
-        Serial.println("Error setting up MDNS responder!");
-      }
-      else 
-      {
-        Serial.println("#7");
-        Serial.println("mDNS responder started");
-        // Add service to MDNS-SD
-        MDNS.addService("http", "tcp", 80);
-      }
-    }
-    else if(s == WL_NO_SSID_AVAIL) 
-    {
-      Serial.println("#8");
-      WiFi.disconnect();
-    }
-  }
+	if (status != s)
+	{
+		LOG_SERIAL.print("Status: ");
+		LOG_SERIAL.println(s);
+		status = s;
+		if (s == WL_CONNECTED)
+		{
+			LOG_SERIAL.println("");
+			LOG_SERIAL.print("Connected to ");
+			LOG_SERIAL.println(ssid);
+			LOG_SERIAL.print("IP address: ");
+			LOG_SERIAL.println(WiFi.localIP());
 
-  if (s == WL_CONNECTED) 
-  {
-    Serial.println("#9");
-    MDNS.update();
-  }
+			if (!MDNS.begin(myhostname))
+			{
+				LOG_SERIAL.println("Error setting up MDNS responder!");
+			}
+			else
+			{
+				LOG_SERIAL.println("mDNS responder started");
+				MDNS.addService("http", "tcp", 80);
+			}
+		}
+		else if(s == WL_NO_SSID_AVAIL)
+		{
+			WiFi.disconnect();
+		}
+	}
 
-  delay(2000);
-  if (s == WL_CONNECTED)
-  {
-    Serial.println("#A");
-    if (!client.connected())
-    {
-      Serial.println("#B");
-      reconnect();
-    }
-    client.loop();
+	if (s == WL_CONNECTED)
+	{
+		MDNS.update();
+		if (!client.connected())
+		{
+			unsigned long now = millis();
+			if(now - lastReconnectAttempt > RECONNECT_TIMEOUT)
+			{
+				lastReconnectAttempt = now;
+				if(reconnect_MQTT())
+				{
+					lastReconnectAttempt = 0;
+				}
+			}
+		}
+		client.loop();
 
-    if (client.connected())
-    {
-      Serial.println("#C");
-      unsigned long now = millis();
-      if (now - lastMsg > 2000)
-      {
-        Serial.println("#D");
-        lastMsg = now;
-        read_data();
-        Serial.println("\n");
-      }
-    }
-    if(digitalRead(SLEEP_PIN))
-    {
-    //ESP.deepSleep(60e6);
-      Serial.println("deepSleep");
-      ESP.deepSleep(5e6);
-    }
-    else
-    {
-      Serial.println("delay");
-      delay(1000);
-    }
-  }
-  //DNS
-  dnsServer.processNextRequest();
-  //HTTP
-  server.handleClient();
+		if (client.connected())
+		{
+			read_data();
+
+            if(digitalRead(SLEEP_PIN))
+            {
+                LOG_SERIAL.println("deepSleep");
+                ESP.deepSleep(DEEPSLEEP_TIME);
+            }
+            else
+            {
+                LOG_SERIAL.println("delay");
+                delay(NORMALSLEEP);
+            }
+		}
+	}
+	dnsServer.processNextRequest();
+	server.handleClient();
 }
