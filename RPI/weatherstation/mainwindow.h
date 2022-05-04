@@ -11,6 +11,8 @@
 #include <QSqlDatabase>
 #include <QtSql>
 #include <QFile>
+#include <QCheckBox>
+#include <QSlider>
 //#include <QtDebug>
 
 QT_BEGIN_NAMESPACE
@@ -28,6 +30,7 @@ public:
     void onRemoveWidget();
     void onMessageReceived(const QByteArray &message, const QMqttTopicName &topic);
     void WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout);
+    void ac_control(QFormLayout* layout);
     QLabel* status = new QLabel;
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
 

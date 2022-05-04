@@ -1,8 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-#define MAX_DEVICES_PER_ROW     4
-#define MAX_DEVICES             12
+#define MAX_DEVICES_PER_ROW     3
+#define MAX_DEVICES             9
 #define RECONNECT_DELAY_TIME    5
 
 static bool toggle_fullscreen = true;
@@ -103,6 +103,7 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
     QSqlQuery qry;
     QString device = topic.name();
     QDateTime dateTime = dateTime.currentDateTime();
+    device.chop(5); // remove /data from name
 
     qry.prepare("INSERT INTO test ("
                 "room,"
@@ -141,8 +142,27 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
             qry.bindValue(":bmpp", value);
         }
     }
+    Q_FOREACH(QHBoxLayout* hbox, findChildren<QHBoxLayout*>())
+    {
+        if((hbox->objectName()==(device + "/HBOX")))
+        {
+            QCheckBox *check = qobject_cast<QCheckBox*>(hbox->itemAt(0)->widget());
+            if(check->isChecked())
+            {
+                QSlider *min = qobject_cast<QSlider*>(hbox->itemAt(2)->widget());
+                QSlider *max = qobject_cast<QSlider*>(hbox->itemAt(4)->widget());
+                QString minhex = QString("%1").arg(min->value(), 2, 16, QLatin1Char('0'));
+                QString maxhex = QString("%1").arg(max->value(), 2, 16, QLatin1Char('0'));
 
-    device.replace("/data", "");
+                m_client->publish(device + "/ack", minhex.toUtf8()+maxhex.toUtf8());
+            }
+            else
+            {
+                m_client->publish(device + "/ack", "FFFF");
+            }
+        }
+    }
+
     qry.bindValue(":device", device);
     qry.bindValue(":room", RoomHash.value(device));
     qry.bindValue(":timestamp", dateTime.toString("yyyy-MM-dd hh:mm:ss"));
@@ -263,49 +283,96 @@ QSensor bmp_pressure()
     return bmp_pres;
 }
 
+void MainWindow::ac_control(QFormLayout* layout)
+{
+    QHBoxLayout* hbox = new QHBoxLayout();
+    hbox->setObjectName(ui->device_id->toPlainText() + "/HBOX");
+    QCheckBox* control_ac = new QCheckBox();
+    control_ac->setText("AC Control: ");
+    control_ac->setLayoutDirection(Qt::RightToLeft);
+    control_ac->setObjectName("control_ac");
+    QSlider* ac_min = new QSlider(Qt::Horizontal);
+    ac_min->setMinimum(0);
+    ac_min->setMaximum(50);
+    QSlider* ac_max = new QSlider(Qt::Horizontal);
+    ac_max->setMinimum(0);
+    ac_max->setMaximum(50);
+    QLabel* ac_min_value = new QLabel("Minimum: 0°C");
+    ac_min_value->setMinimumWidth(80);
+
+    QObject::connect(ac_min, &QSlider::valueChanged, ac_max, [=] () {
+        ac_min_value->setText("Minimum: " + QString::number(ac_min->value()) + "°C");
+        if(ac_max->value() < ac_min->value())
+        {
+            ac_max->setValue(ac_min->value());
+        }
+    });
+
+    QLabel* ac_max_value = new QLabel("Maximum: 0°C");
+    ac_max_value->setMinimumWidth(80);
+
+    QObject::connect(ac_max, &QSlider::valueChanged, ac_min, [=] () {
+        if(ac_max->value() < ac_min->value())
+        {
+            ac_max->setValue(ac_min->value());
+        }
+        ac_max_value->setText("Maximum: " + QString::number(ac_max->value()) + "°C");
+    });
+
+    hbox->addWidget(control_ac);
+    hbox->addWidget(ac_min_value);
+    hbox->addWidget(ac_min);
+    hbox->addWidget(ac_max_value);
+    hbox->addWidget(ac_max);
+
+    layout->addRow(hbox);
+}
+
+
 void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 {
-    auto subscription = m_client->subscribe(ui->device_id->toPlainText() + "/#");
+    auto subscription = m_client->subscribe(ui->device_id->toPlainText() + "/data");
     if (!subscription)
     {
         pop_message("Error", "Could not subscribe. Is there a valid connection?");
         return;
     }
-    QLabel* device_name;
+
+    QPushButton* device_name;
 
     if(ui->device_name->toPlainText().isEmpty())
     {
-        device_name = new QLabel(ui->device_id->toPlainText());
+        device_name = new QPushButton(ui->device_id->toPlainText());
     }
     else
     {
-        device_name = new QLabel(ui->device_name->toPlainText());
+        device_name = new QPushButton(ui->device_name->toPlainText());
     }
 
-    QPushButton* remove_device = new QPushButton("Remove device");
     QSensor dht_humi = dht_humidity();
     QSensor dht_temp = dht_temperature();
     QSensor bmp_temp = bmp_temperature();
     QSensor bmp_pres = bmp_pressure();
 
-    dht_humi.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/DHTH");
-    dht_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/DHTT");
-    bmp_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/BMPT");
-    bmp_pres.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/data/BMPP");
+    dht_humi.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHTH");
+    dht_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHTT");
+    bmp_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMPT");
+    bmp_pres.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMPP");
 
     layout->addRow(device_name);
     layout->addRow(dht_humi.sensor_label, dht_humi.sensor_bar);
     layout->addRow(dht_temp.sensor_label, dht_temp.sensor_bar);
     layout->addRow(bmp_temp.sensor_label, bmp_temp.sensor_bar);
     layout->addRow(bmp_pres.sensor_label, bmp_pres.sensor_bar);
-    layout->addRow(remove_device);
+
+    ac_control(layout);
 
     RoomHash.insert(ui->device_id->toPlainText(), device_name->text());
-    LayoutHash.insert(remove_device, layout);
-    HLayoutHash.insert(remove_device, Hlayout);
-    TopicHash.insert(remove_device, ui->device_id->toPlainText());
+    LayoutHash.insert(device_name, layout);
+    HLayoutHash.insert(device_name, Hlayout);
+    TopicHash.insert(device_name, ui->device_id->toPlainText());
 
-    QObject::connect(remove_device, &QPushButton::clicked, this, &MainWindow::onRemoveWidget);
+    QObject::connect(device_name, &QPushButton::clicked, this, &MainWindow::onRemoveWidget);
     device_counter++;
 }
 
@@ -356,6 +423,23 @@ void MainWindow::onAddWidget()
     }
 }
 
+void deleteWidget(QLayout* layout)
+{
+    while(layout->count() != 0 )
+    {
+        QLayoutItem* item = layout->takeAt(0);
+        if(QWidget* widget = item->widget())
+        {
+            widget->deleteLater();
+        }
+        if(QLayout* childLayout = item->layout())
+        {
+            deleteWidget(childLayout); //Looks dangerous, I know...
+        }
+        delete item;
+    }
+}
+
 void MainWindow::onRemoveWidget()
 {
     QPushButton* button = qobject_cast<QPushButton*>(sender());
@@ -366,12 +450,8 @@ void MainWindow::onRemoveWidget()
     m_client->unsubscribe(topic + "/#");
     TopicHash.remove(button);
 
-    while(layout->count() != 0 )
-    {
-        QLayoutItem* item = layout->takeAt(0);
-        delete item->widget();
-        delete item;
-    }
+    deleteWidget(layout);
+
     device_counter--;
     if(Hlayout->objectName() == "horizontalLayout_1")
     {
@@ -413,4 +493,3 @@ void MainWindow::on_actionExit_triggered()
 {
     close();
 }
-

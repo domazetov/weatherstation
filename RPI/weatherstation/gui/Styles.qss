@@ -170,11 +170,10 @@ QPushButton
 	color: #ffffff;
 	min-width: 80px;
 	border-style: solid;
-	border-width: 1px;
-	border-radius: 3px;
+        border-width: 1px;
+        border-radius: 3px;
 	border-color: #051a39;
-	padding: 5px;
-
+        padding: 5px;
 }
 
 
@@ -676,10 +675,13 @@ QListView::item:hover {
 /*-----QCheckBox-----*/
 QCheckBox
 {
-	background-color: transparent;
-    color: lightgray;
-	border: none;
-
+        background-color: qlineargradient(spread:repeat, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(54, 54, 54, 255),stop:1 rgba(30, 30, 30, 255));
+        color: #ffffff;
+        border-style: solid;
+        border-width: 1px;
+        border-radius: 3px;
+        border-color: #171717;
+        padding: 5px;
 }
 
 
@@ -723,7 +725,6 @@ QCheckBox::indicator:disabled
     border: 1px solid #656565;
 
 }
-
 
 /*-----QRadioButton-----*/
 QRadioButton 
