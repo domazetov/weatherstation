@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1282</width>
-    <height>720</height>
+    <width>1280</width>
+    <height>800</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,7 +22,7 @@
   <property name="minimumSize">
    <size>
     <width>0</width>
-    <height>720</height>
+    <height>800</height>
    </size>
   </property>
   <property name="cursor">
@@ -36,79 +36,43 @@
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QPlainTextEdit" name="device_name">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>25</height>
-         </size>
+       <widget class="QLineEdit" name="device_name">
+        <property name="inputMask">
+         <string/>
         </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>25</height>
-         </size>
+        <property name="text">
+         <string/>
         </property>
-        <property name="baseSize">
-         <size>
-          <width>0</width>
-          <height>25</height>
-         </size>
+        <property name="maxLength">
+         <number>50</number>
         </property>
-        <property name="acceptDrops">
-         <bool>true</bool>
+        <property name="echoMode">
+         <enum>QLineEdit::Normal</enum>
         </property>
-        <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
-        </property>
-        <property name="horizontalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
-        </property>
-        <property name="sizeAdjustPolicy">
-         <enum>QAbstractScrollArea::AdjustIgnored</enum>
-        </property>
-        <property name="tabChangesFocus">
-         <bool>true</bool>
-        </property>
-        <property name="centerOnScroll">
-         <bool>true</bool>
+        <property name="dragEnabled">
+         <bool>false</bool>
         </property>
         <property name="placeholderText">
          <string>Room name</string>
         </property>
+        <property name="cursorMoveStyle">
+         <enum>Qt::LogicalMoveStyle</enum>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
-       <widget class="QPlainTextEdit" name="device_id">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>25</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>25</height>
-         </size>
-        </property>
-        <property name="baseSize">
-         <size>
-          <width>0</width>
-          <height>25</height>
-         </size>
-        </property>
-        <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
-        </property>
-        <property name="horizontalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
-        </property>
-        <property name="tabChangesFocus">
-         <bool>true</bool>
+       <widget class="QLineEdit" name="device_id">
+        <property name="maxLength">
+         <number>50</number>
         </property>
         <property name="placeholderText">
          <string>Device ID</string>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -138,7 +102,7 @@
      <widget class="QFrame" name="frame_1">
       <property name="minimumSize">
        <size>
-        <width>1264</width>
+        <width>0</width>
         <height>0</height>
        </size>
       </property>
@@ -148,7 +112,14 @@
       <property name="frameShadow">
        <enum>QFrame::Raised</enum>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_1"/>
+      <layout class="QHBoxLayout" name="horizontalLayout_1">
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+      </layout>
      </widget>
     </item>
     <item>
@@ -172,7 +143,14 @@
       <property name="frameShadow">
        <enum>QFrame::Raised</enum>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_2"/>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+      </layout>
      </widget>
     </item>
     <item>
@@ -196,7 +174,14 @@
       <property name="frameShadow">
        <enum>QFrame::Raised</enum>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_3"/>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+      </layout>
      </widget>
     </item>
     <item>

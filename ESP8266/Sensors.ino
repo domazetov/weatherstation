@@ -12,8 +12,7 @@ void read_data()
 			break;
 		}
 		retry_count++;
-		LOG_SERIAL.println("NaN: ");
-		LOG_SERIAL.print(retry_count);
+		LOG_SERIAL.printf("\nNaN: %u", retry_count);
 		delay(3000);
 		dhth = dht.getHumidity();
 	}
@@ -22,25 +21,15 @@ void read_data()
 	float bmpt = bmp.readTemperature();
 	float bmpp = bmp.readPressure()/100;
 
-	LOG_SERIAL.print("\nDHT: ");
-	LOG_SERIAL.print("\tHumidity: ");
-	LOG_SERIAL.print(dhth, 2);
-	LOG_SERIAL.print("%");
-	LOG_SERIAL.print("\tTemperature: ");
-	LOG_SERIAL.print(dhtt, 2);
-	LOG_SERIAL.print("C");
-	LOG_SERIAL.print("\nBMP280: ");
-	LOG_SERIAL.print("Temperature: ");
-	LOG_SERIAL.print(bmpt, 2);
-	LOG_SERIAL.print("C");
-	LOG_SERIAL.print("\tPressure: ");
-	LOG_SERIAL.print(bmpp, 2);
-	LOG_SERIAL.print("hPa\n");
+	LOG_SERIAL.printf("\nDHT:\tHumidity: %.0f%%\t\tTemperature: %.2f°C", dhth, dhtt);
+	LOG_SERIAL.printf("\nBMP280:\tPressure: %.2fhPa\tTemperature: %0.2f°C", bmpp, bmpt);
+
+	average_temperature = (uint16_t)((dhtt+bmpt)*50);
 
 	snprintf(data_buffer, 33, "%08X%08X%08X%08X", *(uint32_t*)&dhth, *(uint32_t*)&dhtt, *(uint32_t*)&bmpt, *(uint32_t*)&bmpp);
-	LOG_SERIAL.print("Message payload: ");
+	LOG_SERIAL.print("\nMessage payload: ");
 	LOG_SERIAL.println(data_buffer);
 
-	client.publish(wstation_topic, data_buffer);
+	client.publish(publish_topic, data_buffer);
 	delay(PUBLISH_SLEEP); //Delay needed for MQTT Broker to capture sent message
 }

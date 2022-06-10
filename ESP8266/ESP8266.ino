@@ -8,27 +8,41 @@
 #include <PubSubClient.h>
 #include <DHTesp.h>
 #include <Wire.h>
-#include <SPI.h>
 #include <Adafruit_BMP280.h>
 #include <inttypes.h>
-#include <NoDelay.h>
+#include <IRsend.h>
+#include <IRrecv.h>
+#include <IRremoteESP8266.h>
+#include <IRutils.h>
 
 //Macros
-#define DEVICEID            "WSX"
+#define DEVICEID                "WS1"
 #ifndef APSSID
-#define APSSID              "WeatherStationX"
-#define APPSK               "12345678"
+#define APSSID                  "WeatherStation1"
+#define APPSK                   "12345678"
 #endif
-#define LOG                 true
-#define LOG_SERIAL          if(LOG)Serial
-#define BMP280_I2C_ADDRESS  0x76
-#define MSG_BUFFER_SIZE     40
-#define SLEEP_PIN           13
-#define DEEPSLEEP_TIME      300000000   //5minutes (μs)
-#define NORMALSLEEP         3000        //5seconds (ms)
-#define PUBLISH_SLEEP       2000        //2seconds (ms)
-#define RECONNECT_TIMEOUT   10000       //10seconds (ms)
-#define CONNECT_TIMEOUT     60000       //60seconds (ms)
+#define LOG                     true
+#define LOG_SERIAL              if(LOG)Serial
+#define BMP280_I2C_ADDRESS      0x76
+#define MSG_BUFFER_SIZE         40
+#define LED_PIN                 2
+#define SETUP_PIN               14
+#define DHT_PIN                 10
+#define RECEIVE_PIN             13
+#define SEND_PIN                12
+#define BUFFER_SIZE             1024
+#define TIMEOUT                 50
+#define DNS_PORT                53
+#define PUBLISH_SLEEP           2000        //2seconds (ms)
+#define DEFAULT_SLEEP           8000       	//8seconds (ms)
+#define NORMAL_SLEEP            PUBLISH_SLEEP + DEFAULT_SLEEP
+#define RECONNECT_TIMEOUT       10000       //10seconds (ms)
+#define CONNECT_TIMEOUT         60000       //60seconds (ms)
+#define AC_OFF                  25500
+#define DEEPSLEEP_OFF           0xFF
+
+IRsend irsend(SEND_PIN);
+IRrecv irrecv(RECEIVE_PIN, BUFFER_SIZE, TIMEOUT, false);
 
 //Variables & Functions
 DHTesp dht;
@@ -43,7 +57,6 @@ PubSubClient client(espClient);
 const char *softap_ssid = APSSID;
 const char *softap_password = APPSK;
 const char *myhostname = APSSID;
-const byte DNS_PORT = 53;
 boolean connect;
 unsigned long lastConnectAttempt = 0;
 unsigned int status = WL_IDLE_STATUS;
@@ -53,12 +66,22 @@ int value = 0;
 char ssid[33] = "";
 char password[65] = "";
 char mqtt_server[20] = "";
-char wstation_topic[11];
+decode_results ac_on_signal;
+decode_results ac_off_signal;
+char ac_status[3] = "";
+
+char publish_topic[11];
+char subscribe_topic[11];
+
+uint16_t average_temperature;
+bool send_data = true;
 
 void setup()
 {
-	pinMode(SLEEP_PIN, INPUT);
-	pinMode(BUILTIN_LED, OUTPUT);
+	pinMode(SETUP_PIN, INPUT);
+	pinMode(LED_PIN, OUTPUT);
+	irrecv.enableIRIn();
+	irsend.begin();
 
 	LOG_SERIAL.begin(115200);
 	LOG_SERIAL.println("Configuring AP.");
@@ -75,6 +98,7 @@ void setup()
 	server.on("/", handleWifi);
 	server.on("/wifi", handleWifi);
 	server.on("/wifisave", handleWifiSave);
+	server.on("/acsave", handleACSave);
 	server.onNotFound(handleNotFound);
 	server.begin();
 	LOG_SERIAL.println("HTTP server started.");
@@ -83,8 +107,10 @@ void setup()
 	connect = strlen(ssid) > 0;
 
 	client.setServer(mqtt_server, 1883);
+	client.setCallback(mqtt_callback);
+	client.subscribe(subscribe_topic);
 
-	dht.setup(2, DHTesp::DHT11);
+	dht.setup(DHT_PIN, DHTesp::DHT11);
 
 	if (!bmp.begin(BMP280_I2C_ADDRESS))
 	{
@@ -99,7 +125,23 @@ void setup()
 					Adafruit_BMP280::STANDBY_MS_500);
 
 	String temp_string = String(DEVICEID) + String("/data");
-	temp_string.toCharArray(wstation_topic, sizeof(wstation_topic));
+	temp_string.toCharArray(publish_topic, sizeof(publish_topic));
+	temp_string = String(DEVICEID) + String("/ack");
+	temp_string.toCharArray(subscribe_topic, sizeof(subscribe_topic));
+}
+
+void reset_send_data()
+{
+	uint32_t currentmillis = millis();
+	static uint32_t previousmillis = 0;
+	if(currentmillis - previousmillis >= NORMAL_SLEEP)
+	{
+		previousmillis = currentmillis;
+		if(!send_data)
+		{
+			send_data = true;
+		}
+	}
 }
 
 void loop()
@@ -120,15 +162,10 @@ void loop()
 
 	if (status != s)
 	{
-		LOG_SERIAL.print("Status: ");
-		LOG_SERIAL.println(s);
 		status = s;
 		if (s == WL_CONNECTED)
 		{
-			LOG_SERIAL.println("");
-			LOG_SERIAL.print("Connected to ");
-			LOG_SERIAL.println(ssid);
-			LOG_SERIAL.print("IP address: ");
+			LOG_SERIAL.printf("\nConnected to %s, IP address: ", ssid);
 			LOG_SERIAL.println(WiFi.localIP());
 
 			if (!MDNS.begin(myhostname))
@@ -146,40 +183,43 @@ void loop()
 			WiFi.disconnect();
 		}
 	}
-
-	if (s == WL_CONNECTED)
+	if(digitalRead(SETUP_PIN)) //check if switch is ON
 	{
-		MDNS.update();
-		if (!client.connected())
+		// LOG_SERIAL.println("YES");
+		if (s == WL_CONNECTED)
 		{
-			unsigned long now = millis();
-			if(now - lastReconnectAttempt > RECONNECT_TIMEOUT)
+			MDNS.update();
+			if (!client.connected())
 			{
-				lastReconnectAttempt = now;
-				if(reconnect_MQTT())
+				unsigned long now = millis();
+				if(now - lastReconnectAttempt > RECONNECT_TIMEOUT)
 				{
-					lastReconnectAttempt = 0;
+					lastReconnectAttempt = now;
+					if(reconnect_mqtt())
+					{
+						lastReconnectAttempt = 0;
+					}
 				}
 			}
-		}
-		client.loop();
 
-		if (client.connected())
-		{
-			read_data();
-
-            if(digitalRead(SLEEP_PIN))
-            {
-                LOG_SERIAL.println("deepSleep");
-                ESP.deepSleep(DEEPSLEEP_TIME);
-            }
-            else
-            {
-                LOG_SERIAL.println("delay");
-                delay(NORMALSLEEP);
-            }
+			if (client.connected())
+			{
+				if(send_data)
+				{
+					read_data();
+					send_data = false;
+				}
+				else
+				{
+					reset_send_data();
+				}
+				client.loop();
+			}
 		}
 	}
-	dnsServer.processNextRequest();
-	server.handleClient();
+	else
+	{
+		dnsServer.processNextRequest();
+		server.handleClient();
+	}
 }

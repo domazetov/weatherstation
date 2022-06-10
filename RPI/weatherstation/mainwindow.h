@@ -11,9 +11,8 @@
 #include <QSqlDatabase>
 #include <QtSql>
 #include <QFile>
-#include <QCheckBox>
 #include <QSlider>
-//#include <QtDebug>
+#include <QFrame>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -31,6 +30,7 @@ public:
     void onMessageReceived(const QByteArray &message, const QMqttTopicName &topic);
     void WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout);
     void ac_control(QFormLayout* layout);
+    void enable_deepsleep(QFormLayout* layout);
     QLabel* status = new QLabel;
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
 

@@ -103,6 +103,8 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
     QSqlQuery qry;
     QString device = topic.name();
     QDateTime dateTime = dateTime.currentDateTime();
+    QString actemphex = QString("FF");
+    QString sleephex = QString("FF");
     device.chop(5); // remove /data from name
 
     qry.prepare("INSERT INTO test ("
@@ -144,24 +146,27 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
     }
     Q_FOREACH(QHBoxLayout* hbox, findChildren<QHBoxLayout*>())
     {
-        if((hbox->objectName()==(device + "/HBOX")))
+        if((hbox->objectName()==(device + "/ACBOX")))
         {
-            QCheckBox *check = qobject_cast<QCheckBox*>(hbox->itemAt(0)->widget());
-            if(check->isChecked())
+            QPushButton *ac_control = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
+            if(ac_control->isChecked())
             {
-                QSlider *min = qobject_cast<QSlider*>(hbox->itemAt(2)->widget());
-                QSlider *max = qobject_cast<QSlider*>(hbox->itemAt(4)->widget());
-                QString minhex = QString("%1").arg(min->value(), 2, 16, QLatin1Char('0'));
-                QString maxhex = QString("%1").arg(max->value(), 2, 16, QLatin1Char('0'));
-
-                m_client->publish(device + "/ack", minhex.toUtf8()+maxhex.toUtf8());
+                QSlider *ac_temp = qobject_cast<QSlider*>(hbox->itemAt(2)->widget());
+                actemphex = QString("%1").arg(ac_temp->value(), 2, 16, QLatin1Char('0')).toUpper();
             }
-            else
+        }
+        else if((hbox->objectName()==(device + "/DSLEEP")))
+        {
+            QPushButton *enable_deepsleep = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
+            if(enable_deepsleep->isChecked())
             {
-                m_client->publish(device + "/ack", "FFFF");
+                QSpinBox *min = qobject_cast<QSpinBox*>(hbox->itemAt(1)->widget());
+                sleephex = QString("%1").arg(min->value(), 2, 16, QLatin1Char('0')).toUpper();
             }
         }
     }
+
+    m_client->publish(device + "/ack", actemphex.toUtf8()+sleephex.toUtf8());
 
     qry.bindValue(":device", device);
     qry.bindValue(":room", RoomHash.value(device));
@@ -286,52 +291,89 @@ QSensor bmp_pressure()
 void MainWindow::ac_control(QFormLayout* layout)
 {
     QHBoxLayout* hbox = new QHBoxLayout();
-    hbox->setObjectName(ui->device_id->toPlainText() + "/HBOX");
-    QCheckBox* control_ac = new QCheckBox();
-    control_ac->setText("AC Control: ");
-    control_ac->setLayoutDirection(Qt::RightToLeft);
-    control_ac->setObjectName("control_ac");
-    QSlider* ac_min = new QSlider(Qt::Horizontal);
-    ac_min->setMinimum(0);
-    ac_min->setMaximum(50);
-    QSlider* ac_max = new QSlider(Qt::Horizontal);
-    ac_max->setMinimum(0);
-    ac_max->setMaximum(50);
-    QLabel* ac_min_value = new QLabel("Minimum: 0°C");
-    ac_min_value->setMinimumWidth(80);
+    hbox->setObjectName(ui->device_id->text() + "/ACBOX");
 
-    QObject::connect(ac_min, &QSlider::valueChanged, ac_max, [=] () {
-        ac_min_value->setText("Minimum: " + QString::number(ac_min->value()) + "°C");
-        if(ac_max->value() < ac_min->value())
+    QPushButton* ac_control = new QPushButton();
+    ac_control->setCheckable(true);
+    ac_control->setText("Enable AC Control");
+
+    QSlider* ac_temp = new QSlider(Qt::Horizontal);
+    ac_temp->setMinimum(0);
+    ac_temp->setMaximum(50);
+    ac_temp->setValue(25);
+    QLabel* ac_temp_value = new QLabel("Target temperature: 25°C");
+    ac_temp_value->setMinimumWidth(120);
+
+    ac_temp->setVisible(false);
+    ac_temp_value->setVisible(false);
+
+
+    QObject::connect(ac_control, &QCheckBox::toggled, this, [=]()
+    {
+        bool state = ac_control->isChecked();
+        ac_temp->setVisible(state);
+        ac_temp_value->setVisible(state);
+        if(state)
         {
-            ac_max->setValue(ac_min->value());
+            ac_control->setText("Disable AC Control");
+        }
+        else
+        {
+            ac_control->setText("Enable AC Control");
         }
     });
 
-    QLabel* ac_max_value = new QLabel("Maximum: 0°C");
-    ac_max_value->setMinimumWidth(80);
-
-    QObject::connect(ac_max, &QSlider::valueChanged, ac_min, [=] () {
-        if(ac_max->value() < ac_min->value())
-        {
-            ac_max->setValue(ac_min->value());
-        }
-        ac_max_value->setText("Maximum: " + QString::number(ac_max->value()) + "°C");
+    QObject::connect(ac_temp, &QSlider::valueChanged, this, [=] ()
+    {
+        ac_temp_value->setText("Target temperature: " + QString::number(ac_temp->value()) + "°C");
     });
 
-    hbox->addWidget(control_ac);
-    hbox->addWidget(ac_min_value);
-    hbox->addWidget(ac_min);
-    hbox->addWidget(ac_max_value);
-    hbox->addWidget(ac_max);
+    hbox->addWidget(ac_control);
+    hbox->addWidget(ac_temp_value);
+    hbox->addWidget(ac_temp);
 
     layout->addRow(hbox);
 }
 
+void MainWindow::enable_deepsleep(QFormLayout* layout)
+{
+    QHBoxLayout* hbox = new QHBoxLayout();
+    hbox->setObjectName(ui->device_id->text() + "/DSLEEP");
+
+    QPushButton* ds_control = new QPushButton();
+    ds_control->setCheckable(true);
+    ds_control->setText("Enable ESP DeepSleep");
+
+    QSpinBox* minutes = new QSpinBox;
+    minutes->setVisible(false);
+    minutes->setMaximum(60);
+    minutes->setMinimum(1);
+    minutes->setToolTip("Set sleep time in minutes, up to 60");
+    minutes->setSuffix("min");
+
+    QObject::connect(ds_control, &QCheckBox::toggled, this, [=]()
+    {
+        bool state = ds_control->isChecked();
+        minutes->setVisible(state);
+        if(state)
+        {
+            ds_control->setText("Disable ESP DeepSleep");
+        }
+        else
+        {
+            ds_control->setText("Enable ESP DeepSleep");
+        }
+    });
+
+    hbox->addWidget(ds_control);
+    hbox->addWidget(minutes);
+
+    layout->addRow(hbox);
+}
 
 void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 {
-    auto subscription = m_client->subscribe(ui->device_id->toPlainText() + "/data");
+    auto subscription = m_client->subscribe(ui->device_id->text() + "/data");
     if (!subscription)
     {
         pop_message("Error", "Could not subscribe. Is there a valid connection?");
@@ -340,13 +382,13 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 
     QPushButton* device_name;
 
-    if(ui->device_name->toPlainText().isEmpty())
+    if(ui->device_name->text().isEmpty())
     {
-        device_name = new QPushButton(ui->device_id->toPlainText());
+        device_name = new QPushButton(ui->device_id->text());
     }
     else
     {
-        device_name = new QPushButton(ui->device_name->toPlainText());
+        device_name = new QPushButton(ui->device_name->text());
     }
 
     QSensor dht_humi = dht_humidity();
@@ -354,10 +396,10 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     QSensor bmp_temp = bmp_temperature();
     QSensor bmp_pres = bmp_pressure();
 
-    dht_humi.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHTH");
-    dht_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/DHTT");
-    bmp_temp.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMPT");
-    bmp_pres.sensor_bar->setObjectName(ui->device_id->toPlainText() + "/BMPP");
+    dht_humi.sensor_bar->setObjectName(ui->device_id->text() + "/DHTH");
+    dht_temp.sensor_bar->setObjectName(ui->device_id->text() + "/DHTT");
+    bmp_temp.sensor_bar->setObjectName(ui->device_id->text() + "/BMPT");
+    bmp_pres.sensor_bar->setObjectName(ui->device_id->text() + "/BMPP");
 
     layout->addRow(device_name);
     layout->addRow(dht_humi.sensor_label, dht_humi.sensor_bar);
@@ -366,11 +408,17 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     layout->addRow(bmp_pres.sensor_label, bmp_pres.sensor_bar);
 
     ac_control(layout);
+    enable_deepsleep(layout);
 
-    RoomHash.insert(ui->device_id->toPlainText(), device_name->text());
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    layout->addRow(line);
+
+    RoomHash.insert(ui->device_id->text(), device_name->text());
     LayoutHash.insert(device_name, layout);
     HLayoutHash.insert(device_name, Hlayout);
-    TopicHash.insert(device_name, ui->device_id->toPlainText());
+    TopicHash.insert(device_name, ui->device_id->text());
 
     QObject::connect(device_name, &QPushButton::clicked, this, &MainWindow::onRemoveWidget);
     device_counter++;
@@ -378,7 +426,7 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 
 void MainWindow::onAddWidget()
 {
-    if(ui->device_id->toPlainText().isEmpty())
+    if(ui->device_id->text().isEmpty())
     {
         pop_message("Warning", "Device ID is required");
         return;
@@ -386,7 +434,7 @@ void MainWindow::onAddWidget()
 
     foreach(QPushButton* i, TopicHash.keys())
     {
-        if(TopicHash[i] == ui->device_id->toPlainText())
+        if(TopicHash[i] == ui->device_id->text())
         {
             pop_message("Warning", "Device already added!");
             return;
@@ -395,7 +443,7 @@ void MainWindow::onAddWidget()
 
     if(device_counter < MAX_DEVICES)
     {
-        QHBoxLayout* Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_4->layout());;
+        QHBoxLayout* Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_4->layout());
         QFormLayout* layout = new QFormLayout();
 
         if(MAX_DEVICES_PER_ROW > frame_1_counter)

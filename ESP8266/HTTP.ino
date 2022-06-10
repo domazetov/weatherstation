@@ -1,7 +1,7 @@
 
 boolean captivePortal()
 {
-	if(!isIp(server.hostHeader()) && server.hostHeader() != (String(myhostname) + ".local"))
+	if (!isIp(server.hostHeader()) && server.hostHeader() != (String(myhostname) + ".local"))
 	{
 		LOG_SERIAL.println("Request redirected to captive portal");
 		server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
@@ -19,27 +19,69 @@ void handleWifi()
 	server.sendHeader("Expires", "-1");
 
 	String Page;
-	Page += F(
-		"<!DOCTYPE html><html lang='en'><head>"
-		"<meta name='viewport' content='width=device-width'>"
-		"<title>Setup</title>"
-		"<style>*,::after,::before{box-sizing:border-box;}"
-		"body{margin:0;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans','Liberation Sans';"
-		"font-size:1rem;font-weight:400;line-height:1.5;color:#212529;background-color:#f5f5f5;}"
-		".form-control{display:block;width:100%;height:calc(1.5em + .75rem + 2px);border:1px solid #ced4da;}"
-		"button{cursor: pointer;border:1px solid transparent;color:#fff;background-color:#ff7200;"
-		"border-color:#ff7200;padding:.5rem 1rem;font-size:1.25rem;line-height:1.5;border-radius:.3rem;width:100%}"
-		".form-signin{width:100%;max-width:400px;padding:15px;margin:auto;}h1{text-align: center}</style></head><body>"
-		"<main class='form-signin'><form action='wifisave' method='post'><h1 class=''>WiFi Setup</h1>"
-		"<br/><div class='form-floating'><label><b>SSID:</b></label>"
-		"<input type='text' class='form-control' placeholder='network' name='n'></div><div class='form-floating'>"
-		"<br/><label><b>Password:</b></label><input type='password' class='form-control' placeholder='password' name='p'>"
-		"</div><div class='form-floating'><br/><label><b>Broker:</b></label>"
-		"<input type='ip-address' class='form-control' placeholder='ip-address' name='b'>"
-		"</div><br/><button type='submit'>Save</button>"
-	);
+	Page += "<!DOCTYPE html>";
+	Page += "<html lang='en'>";
+	Page += "<head>";
+	Page += "<meta name='viewport' content='width=device-width'/>";
+	Page += "<title>Setup</title>";
+	Page += "<style> *, ::after, ::before { box-sizing: border-box; }";
+	Page += "body {";
+	Page += "margin: 0;";
+	Page += "font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans';";
+	Page += "font-size: 1rem;";
+	Page += "font-weight: 400;";
+	Page += "line-height: 1.5;";
+	Page += "color: #212529;";
+	Page += "background-color: #f5f5f5;}";
+	Page += ".form-control {";
+	Page += "display: block;";
+	Page += "width: 100%;";
+	Page += "height: calc(1.5em + 0.75rem + 2px);";
+	Page += "border: 1px solid #ced4da;}";
+	Page += "button {";
+	Page += "cursor: pointer;";
+	Page += "border: 1px solid transparent;";
+	Page += "color: #fff;";
+	Page += "background-color: #ff7200;";
+	Page += "border-color: #ff7200;";
+	Page += "padding: 0.5rem 1rem;";
+	Page += "font-size: 1.25rem;";
+	Page += "line-height: 1.5;";
+	Page += "border-radius: 0.3rem;";
+	Page += "width: 100%;}";
+	Page += ".form-signin {";
+	Page += "width: 100%;";
+	Page += "max-width: 400px;";
+	Page += "padding: 15px;";
+	Page += "margin: auto;}";
+	Page += "h1 { text-align: center; }";
+	Page += "</style>";
+	Page += "</head>";
+	Page += "<body>";
+	Page += "<main class='form-signin'>";
+	Page += "<form action='wifisave' method='post'>";
+	Page += "<h1>WiFi Setup</h1>";
+	Page += "<br />";
+	Page += "<div class='form-floating'>";
+	Page += "<label><b>SSID:</b></label>";
+	Page += "<input type='text' class='form-control' placeholder='network' name='n'/>";
+	Page += "</div>";
+	Page += "<div class='form-floating'>";
+	Page += "<br /><label><b>Password:</b></label>";
+	Page += "<input type='password' class='form-control' placeholder='password' name='p'/>";
+	Page += "</div>";
+	Page += "<div class='form-floating'>";
+	Page += "<br /><label><b>Broker:</b></label>";
+	Page += "<input type='ip-address' class='form-control' placeholder='ip-address'name='b'/>";
+	Page += "</div>";
+	Page += "<br /><button type='submit'>Save</button>";
+	Page += "</form>";
+	Page += "<br />";
+	Page += "<form method='get' action='acsave'>";
+	Page += "<button type='submit'>Setup AC</button>";
+	Page += "</form>";
 
-	if(server.client().localIP() == apip)
+	if (server.client().localIP() == apip)
 	{
 		Page += String(F("<p>You are connected through the AP: ")) + softap_ssid + F("</p>");
 	}
@@ -48,11 +90,12 @@ void handleWifi()
 		Page += String(F("<p>You are connected through the WiFi network: ")) + ssid + F("</p>");
 	}
 
-	Page += F("</td></tr></table><table><tr><th align='left'>Current configuration:</th></tr><tr><td>SSID ");
-	Page += String(ssid) + F("</td></tr><tr><td>IP ") + toStringIp(WiFi.localIP());
-	Page += F("</td></tr><tr><td>Broker IP ") + String(mqtt_server);
-	Page += F("</td></tr></table><table><tr><th align='left'>WiFi list:</th></tr>");
+	Page += "<table><tr><th align='left'>Current configuration:</th></tr>";
+	Page += String(F("<p>AC Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
+	Page += F("<tr><td>SSID ") + String(ssid) + F("</td></tr><tr><td>IP ") + toStringIp(WiFi.localIP()) + F("</td></tr>");
+	Page += F("<tr><td>Broker IP ") + String(mqtt_server) + F("</td></tr></table>");
 
+	Page += "<table><tr><th align='left'>WiFi list:</th></tr>";
 	LOG_SERIAL.println("scan start");
 	int n = WiFi.scanNetworks();
 	LOG_SERIAL.println("scan done");
@@ -66,8 +109,9 @@ void handleWifi()
 	}
 	else
 	{
-		Page += F("<tr><td>No WiFi found</td></tr></body></form></main></html>");
+		Page += "<tr><td>No WiFi found</td></tr>";
 	}
+	Page += "</body></main></html>";
 	server.send(200, "text/html", Page);
 	server.client().stop();
 }
@@ -111,4 +155,103 @@ void handleNotFound()
 	server.sendHeader("Pragma", "no-cache");
 	server.sendHeader("Expires", "-1");
 	server.send(404, "text/plain", message);
+}
+
+void handleACSave()
+{
+	LOG_SERIAL.println("AC SAVE");
+	static uint8_t state = 0;
+
+	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+	server.sendHeader("Pragma", "no-cache");
+	server.sendHeader("Expires", "-1");
+
+	String Page;
+	Page += "<!DOCTYPE html>";
+	Page += "<html lang='en'>";
+	Page += "<head>";
+	Page += "<meta name='viewport' content='width=device-width' />";
+	Page += "<title>Setup</title>";
+	Page += "<style> *, ::after, ::before { box-sizing: border-box; }";
+	Page += "body {";
+	Page += "margin: 0;";
+	Page += "font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans';";
+	Page += "font-size: 1rem;";
+	Page += "font-weight: 400;";
+	Page += "line-height: 1.5;";
+	Page += "color: #212529;";
+	Page += "background-color: #f5f5f5; }";
+	Page += ".form-control {";
+	Page += "display: block;";
+	Page += "width: 100%;";
+	Page += "height: calc(1.5em + 0.75rem + 2px);";
+	Page += "border: 1px solid #ced4da; }";
+	Page += "button {";
+	Page += "cursor: pointer;";
+	Page += "border: 1px solid transparent;";
+	Page += "color: #fff;";
+	Page += "background-color: #ff7200;";
+	Page += "border-color: #ff7200;";
+	Page += "padding: 0.5rem 1rem;";
+	Page += "font-size: 1.25rem;";
+	Page += "line-height: 1.5;";
+	Page += "border-radius: 0.3rem;";
+	Page += "width: 100%; }";
+	Page += ".form-signin {";
+	Page += "width: 100%;";
+	Page += "max-width: 400px;";
+	Page += "padding: 15px;";
+	Page += "margin: auto; }";
+	Page += "h1 { text-align: center; }";
+	Page += "</style>";
+	Page += "</head>";
+	Page += "<body>";
+	Page += "<main class='form-signin'>";
+	Page += "<form action='wifisave' method='post'>";
+	Page += "<h1>AC SETUP</h1>";
+	Page += "<center>";
+
+	switch (state)
+	{
+	case 0:
+		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
+		Page += "<p><b>Send AC ON</b></p></center></body></main></html>";
+		server.send(200, "text/html", Page);
+		server.client().stop();
+		while (!receive_ir_signal(&ac_on_signal))
+			;
+		if (!strcmp(typeToString(ac_on_signal.decode_type).c_str(), "UNKNOWN"))
+		{
+			LOG_SERIAL.println("UNKNOWN0");
+		}
+		else
+		{
+			state++;
+		}
+		break;
+	case 1:
+		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
+		Page += String(F("<p>OFF Protocol: ")) + typeToString(ac_off_signal.decode_type).c_str() + F("</p>");
+		Page += "<p><b>Send AC OFF</b></p></center></body></main></html>";
+		server.send(200, "text/html", Page);
+		server.client().stop();
+		while (!receive_ir_signal(&ac_off_signal))
+			;
+		if (!strcmp(typeToString(ac_off_signal.decode_type).c_str(), "UNKNOWN"))
+		{
+			LOG_SERIAL.println("UNKNOWN1");
+		}
+		else
+		{
+			state++;
+		}
+		break;
+	case 2:
+		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
+		Page += String(F("<p>OFF Protocol: ")) + typeToString(ac_off_signal.decode_type).c_str() + F("</p>");
+		Page += "<p><b>Setup Done</b></p><br/><form method='get' action='wifi'><button type='submit'>Setup WIFI</button></form></center></body></main></html>";
+		server.send(200, "text/html", Page);
+		state = 0;
+		break;
+	}
 }
