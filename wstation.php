@@ -1,7 +1,7 @@
 <html>
     <head>
         <title>Weather Station</title>
-	<meta http-equiv="refresh" content="5">
+	<meta http-equiv="refresh" content="10">
         <style type="text/css">
             body {
                 background-color: #FFFFFF;
@@ -70,26 +70,16 @@
             die("Connection failed: " . $conn->connect_error);
             }
 
-            $sql = "SELECT id, room, device, dhth, dhtt, bmpt, bmpp, timestamp FROM test ORDER BY device, timestamp DESC";
+            $sql = "SELECT id, room, device, dhth, dhtt,
+                         bmpt, bmpp, timestamp FROM data ORDER BY device, timestamp DESC";
             $result = $conn->query($sql);
 
             $return = array();
-        
+
             foreach($result as $val) {
                 $return[$val["device"]][] = $val;
             }
-            
-            // echo "<code>print_r($return)</code>";
-            // echo "<pre>";
-            // echo print_r($return);
-            // echo "</pre>";
-            // function rand_color() {
-            //     return '#' . str_pad(dechex(mt_rand(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
-            // }
-
-
             foreach ($return as $key => $value) {
-                # code...
                 echo "<center><h2>$key</h2></center>";
                 echo "<table>";
                 echo "<thead>";
@@ -102,25 +92,20 @@
                 echo "</thead>";
                 echo "<tbody>";
 
-                $sava = array_slice($value, 0, 10);
+                $datat = array_slice($value, 0, 10);
 
-                foreach ($sava as $keyt => $row) {
-                    # code...
+                foreach ($datat as $keyt => $row) {
                     $date = new DateTime($row["timestamp"]);
                     $date = $date->format('d-m-Y H:i:s');
-                    echo "<tr><td>" . $row["room"]. "</td><td>" . number_format($row["dhth"], 2)."%". "</td><td>" . number_format($row["dhtt"], 2)."°C". "</td><td>" . number_format($row["bmpt"], 2)."°C". "</td><td>" . number_format($row["bmpp"], 2, ".", "")."hPa". "</td><td>" . $date. "</td></tr>";
+                    echo "<tr><td>" . $row["room"]. "</td><td>"
+                                    . number_format($row["dhth"], 2)."%". "</td><td>"
+                                    . number_format($row["dhtt"], 2)."°C". "</td><td>"
+                                    . number_format($row["bmpt"], 2)."°C". "</td><td>"
+                                    . number_format($row["bmpp"], 2, ".", "")."hPa". "</td><td>"
+                                    . $date. "</td></tr>";
                 }
                 echo "</tbody></table><br>";
             }
-
-            // if ($result->num_rows > 0) {
-            // // output data of each row
-            // while($row = $result->fetch_assoc()) {
-            //     echo "<tr><td>" . $row["id"]. "</td><td>" . $row["room"]. "</td><td>" . number_format($row["dhth"], 2)."%". "</td><td>" . number_format($row["dhtt"], 2)."°C". "</td><td>" . number_format($row["bmpt"], 2)."°C". "</td><td>" . number_format($row["bmpp"], 2, ".", "")."hPa". "</td><td>" . $row["timestamp"]. "</td></tr>";
-            // }
-            // } else {
-            // echo "0 results";
-            // }
             $conn->close();
             ?>
     </body>

@@ -1,5 +1,4 @@
-void load_from_eeprom()
-{
+void load_from_eeprom(){
 	EEPROM.begin(512);
 	EEPROM.get(0, ssid);
 	EEPROM.get(0 + sizeof(ssid), password);
@@ -9,8 +8,7 @@ void load_from_eeprom()
 	char ok[2 + 1];
 	EEPROM.get(0 + sizeof(ssid) + sizeof(password) + sizeof(mqtt_server) + sizeof(ac_on_signal) + sizeof(ac_off_signal), ok);
 	EEPROM.end();
-	if (String(ok) != String("OK"))
-	{
+	if (String(ok) != String("OK")){
 		ssid[0] = 0;
 		password[0] = 0;
 	}

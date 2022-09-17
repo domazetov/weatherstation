@@ -16,7 +16,8 @@
 #include <IRutils.h>
 
 //Macros
-#define DEVICEID                "WS1"
+#define DEVICEID                "WS2"
+#define ENABLE_IR               false
 #ifndef APSSID
 #define APSSID                  "WeatherStation1"
 #define APPSK                   "12345678"
@@ -26,10 +27,6 @@
 #define BMP280_I2C_ADDRESS      0x76
 #define MSG_BUFFER_SIZE         40
 #define LED_PIN                 2
-#define SETUP_PIN               14
-#define DHT_PIN                 10
-#define RECEIVE_PIN             13
-#define SEND_PIN                12
 #define BUFFER_SIZE             1024
 #define TIMEOUT                 50
 #define DNS_PORT                53
@@ -40,9 +37,17 @@
 #define CONNECT_TIMEOUT         60000       //60seconds (ms)
 #define AC_OFF                  25500
 #define DEEPSLEEP_OFF           0xFF
-
+#if ENABLE_IR
+#define SETUP_PIN               14
+#define DHT_PIN                 10
+#define RECEIVE_PIN             13
+#define SEND_PIN                12
 IRsend irsend(SEND_PIN);
 IRrecv irrecv(RECEIVE_PIN, BUFFER_SIZE, TIMEOUT, false);
+#else
+#define SETUP_PIN               13
+#define DHT_PIN                 2
+#endif
 
 //Variables & Functions
 DHTesp dht;
@@ -73,16 +78,16 @@ char ac_status[3] = "";
 char publish_topic[11];
 char subscribe_topic[11];
 
-uint16_t average_temperature;
+uint16_t average_temp;
 bool send_data = true;
 
-void setup()
-{
+void setup(){
 	pinMode(SETUP_PIN, INPUT);
 	pinMode(LED_PIN, OUTPUT);
+#if ENABLE_IR
 	irrecv.enableIRIn();
 	irsend.begin();
-
+#endif
 	LOG_SERIAL.begin(115200);
 	LOG_SERIAL.println("Configuring AP.");
 
@@ -98,7 +103,9 @@ void setup()
 	server.on("/", handleWifi);
 	server.on("/wifi", handleWifi);
 	server.on("/wifisave", handleWifiSave);
+#if ENABLE_IR
 	server.on("/acsave", handleACSave);
+#endif
 	server.onNotFound(handleNotFound);
 	server.begin();
 	LOG_SERIAL.println("HTTP server started.");
@@ -112,8 +119,7 @@ void setup()
 
 	dht.setup(DHT_PIN, DHTesp::DHT11);
 
-	if (!bmp.begin(BMP280_I2C_ADDRESS))
-	{
+	if (!bmp.begin(BMP280_I2C_ADDRESS)){
 		LOG_SERIAL.println("Could not find a valid BMP280 sensor, check wiring or try a different address!");
 		while (1) delay(10);
 	}
@@ -130,24 +136,19 @@ void setup()
 	temp_string.toCharArray(subscribe_topic, sizeof(subscribe_topic));
 }
 
-void reset_send_data()
-{
+void reset_send_data(){
 	uint32_t currentmillis = millis();
 	static uint32_t previousmillis = 0;
-	if(currentmillis - previousmillis >= NORMAL_SLEEP)
-	{
+	if(currentmillis - previousmillis >= NORMAL_SLEEP){
 		previousmillis = currentmillis;
-		if(!send_data)
-		{
+		if(!send_data){
 			send_data = true;
 		}
 	}
 }
 
-void loop()
-{
-	if(connect)
-	{
+void loop(){
+	if(connect){
 		LOG_SERIAL.println("Connection requested.");
 		connect = false;
 		connect_to_wifi();
@@ -155,70 +156,50 @@ void loop()
 	}
 
 	unsigned int s = WiFi.status();
-	if (s == 0 && millis() > (lastConnectAttempt + CONNECT_TIMEOUT))
-	{
+	if (s == 0 && millis() > (lastConnectAttempt + CONNECT_TIMEOUT)){
 		connect = true;
 	}
 
-	if (status != s)
-	{
+	if (status != s){
 		status = s;
-		if (s == WL_CONNECTED)
-		{
+		if (s == WL_CONNECTED){
 			LOG_SERIAL.printf("\nConnected to %s, IP address: ", ssid);
 			LOG_SERIAL.println(WiFi.localIP());
 
-			if (!MDNS.begin(myhostname))
-			{
+			if (!MDNS.begin(myhostname)){
 				LOG_SERIAL.println("Error setting up MDNS responder!");
-			}
-			else
-			{
+			}else{
 				LOG_SERIAL.println("mDNS responder started");
 				MDNS.addService("http", "tcp", 80);
 			}
-		}
-		else if(s == WL_NO_SSID_AVAIL)
-		{
+		}else if(s == WL_NO_SSID_AVAIL){
 			WiFi.disconnect();
 		}
 	}
-	if(digitalRead(SETUP_PIN)) //check if switch is ON
-	{
-		// LOG_SERIAL.println("YES");
-		if (s == WL_CONNECTED)
-		{
+	if(digitalRead(SETUP_PIN)){//check if switch is ON
+		if (s == WL_CONNECTED){
 			MDNS.update();
-			if (!client.connected())
-			{
+			if (!client.connected()){
 				unsigned long now = millis();
-				if(now - lastReconnectAttempt > RECONNECT_TIMEOUT)
-				{
+				if(now - lastReconnectAttempt > RECONNECT_TIMEOUT){
 					lastReconnectAttempt = now;
-					if(reconnect_mqtt())
-					{
+					if(reconnect_mqtt()){
 						lastReconnectAttempt = 0;
 					}
 				}
 			}
 
-			if (client.connected())
-			{
-				if(send_data)
-				{
+			if (client.connected()){
+				if(send_data){
 					read_data();
 					send_data = false;
-				}
-				else
-				{
+				}else{
 					reset_send_data();
 				}
 				client.loop();
 			}
 		}
-	}
-	else
-	{
+	}else{
 		dnsServer.processNextRequest();
 		server.handleClient();
 	}

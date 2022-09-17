@@ -28,6 +28,7 @@ public:
     void onAddWidget();
     void onRemoveWidget();
     void onMessageReceived(const QByteArray &message, const QMqttTopicName &topic);
+    void HandleNewMessage(QString device, const QByteArray &message, QSqlQuery &qry);
     void WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout);
     void ac_control(QFormLayout* layout);
     void enable_deepsleep(QFormLayout* layout);

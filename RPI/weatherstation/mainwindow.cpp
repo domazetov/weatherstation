@@ -56,8 +56,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
-    if(!toggle_fullscreen)
-    {
+    if(!toggle_fullscreen){
         move(event->globalX()-m_nMouseClick_X_Coordinate,event->globalY()-m_nMouseClick_Y_Coordinate);
     }
 }
@@ -69,8 +68,7 @@ float str2float(const char* payload)
         unsigned char bytes[4];
     }data;
 
-    for(int i = 0; i < 4; i++)
-    {
+    for(int i = 0; i < 4; i++){
         sscanf(payload+6-2*i, "%2hhx", &data.bytes[i]);
     }
 
@@ -79,35 +77,70 @@ float str2float(const char* payload)
 
 void fill_progressbar(QProgressBar* bar, QString unit, float value)
 {
-    if((bar->minimum() <= value) && (bar->maximum() >= value))
-    {
+    if((bar->minimum() <= value) && (bar->maximum() >= value)){
         bar->setValue(value);
         bar->setFormat(QString::number(value) + unit);
-    }
-    else
-    {
+    }else{
         bar->setValue(bar->minimum());
         bar->setFormat("Error, bad value");
     }
 }
 
+void MainWindow::HandleNewMessage(QString device, const QByteArray &message, QSqlQuery &qry){
+    float read_value = 0;
+    QString actemphex = QString("FF");
+    QString sleephex = QString("FF");
+
+    Q_FOREACH(QProgressBar* bar, findChildren<QProgressBar*>()){
+        if(bar->objectName()==(device + "/DHTH")){
+            read_value = str2float(message.data());
+            fill_progressbar(bar, "%", read_value);
+            qry.bindValue(":dhth", read_value);
+        }else if(bar->objectName()==(device + "/DHTT")){
+            read_value = str2float(message.data()+8);
+            fill_progressbar(bar, "°C", read_value);
+            qry.bindValue(":dhtt", read_value);
+        }else if(bar->objectName()==(device + "/BMPT")){
+            read_value = str2float(message.data()+16);
+            fill_progressbar(bar, "°C", read_value);
+            qry.bindValue(":bmpt", read_value);
+        }else if(bar->objectName()==(device + "/BMPP")){
+            read_value = str2float(message.data()+24);
+            fill_progressbar(bar, "hPA", read_value);
+            qry.bindValue(":bmpp", read_value);
+        }
+    }
+    Q_FOREACH(QHBoxLayout* hbox, findChildren<QHBoxLayout*>()){
+        if((hbox->objectName()==(device + "/ACBOX"))){
+            QPushButton *ac_control = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
+            if(ac_control->isChecked()){
+                QSlider *ac_temp = qobject_cast<QSlider*>(hbox->itemAt(2)->widget());
+                actemphex = QString("%1").arg(ac_temp->value(), 2, 16, QLatin1Char('0')).toUpper();
+            }
+        }else if((hbox->objectName()==(device + "/DSLEEP"))){
+            QPushButton *enable_deepsleep = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
+            if(enable_deepsleep->isChecked()){
+                QSpinBox *min = qobject_cast<QSpinBox*>(hbox->itemAt(1)->widget());
+                sleephex = QString("%1").arg(min->value(), 2, 16, QLatin1Char('0')).toUpper();
+            }
+        }
+    }
+    m_client->publish(device + "/ack", actemphex.toUtf8()+sleephex.toUtf8());
+}
+
 void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicName &topic)
 {
-    float value = 0;
     bool ok=db.open();
-    if(!ok)
-    {
+    if(!ok){
         pop_message("Critical", "Unable to open database");
     }
 
     QSqlQuery qry;
     QString device = topic.name();
     QDateTime dateTime = dateTime.currentDateTime();
-    QString actemphex = QString("FF");
-    QString sleephex = QString("FF");
     device.chop(5); // remove /data from name
 
-    qry.prepare("INSERT INTO test ("
+    qry.prepare("INSERT INTO data ("
                 "room,"
                 "device,"
                 "dhtt,"
@@ -116,64 +149,12 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
                 "bmpp,"
                 "timestamp)"
                 "VALUES (:room, :device, :dhtt, :dhth, :bmpt, :bmpp, :timestamp);");
-
-    Q_FOREACH(QProgressBar* bar, findChildren<QProgressBar*>())
-    {
-        if(bar->objectName()==(device + "/DHTH"))
-        {
-            value = str2float(message.data());
-            fill_progressbar(bar, "%", value);
-            qry.bindValue(":dhth", value);
-        }
-        else if(bar->objectName()==(device + "/DHTT"))
-        {
-            value = str2float(message.data()+8);
-            fill_progressbar(bar, "°C", value);
-            qry.bindValue(":dhtt", value);
-        }
-        else if(bar->objectName()==(device + "/BMPT"))
-        {
-            value = str2float(message.data()+16);
-            fill_progressbar(bar, "°C", value);
-            qry.bindValue(":bmpt", value);
-        }
-        else if(bar->objectName()==(device + "/BMPP"))
-        {
-            value = str2float(message.data()+24);
-            fill_progressbar(bar, "hPA", value);
-            qry.bindValue(":bmpp", value);
-        }
-    }
-    Q_FOREACH(QHBoxLayout* hbox, findChildren<QHBoxLayout*>())
-    {
-        if((hbox->objectName()==(device + "/ACBOX")))
-        {
-            QPushButton *ac_control = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
-            if(ac_control->isChecked())
-            {
-                QSlider *ac_temp = qobject_cast<QSlider*>(hbox->itemAt(2)->widget());
-                actemphex = QString("%1").arg(ac_temp->value(), 2, 16, QLatin1Char('0')).toUpper();
-            }
-        }
-        else if((hbox->objectName()==(device + "/DSLEEP")))
-        {
-            QPushButton *enable_deepsleep = qobject_cast<QPushButton*>(hbox->itemAt(0)->widget());
-            if(enable_deepsleep->isChecked())
-            {
-                QSpinBox *min = qobject_cast<QSpinBox*>(hbox->itemAt(1)->widget());
-                sleephex = QString("%1").arg(min->value(), 2, 16, QLatin1Char('0')).toUpper();
-            }
-        }
-    }
-
-    m_client->publish(device + "/ack", actemphex.toUtf8()+sleephex.toUtf8());
-
+    HandleNewMessage(device, message, qry);
     qry.bindValue(":device", device);
     qry.bindValue(":room", RoomHash.value(device));
     qry.bindValue(":timestamp", dateTime.toString("yyyy-MM-dd hh:mm:ss"));
 
-    if(!qry.exec())
-    {
+    if(!qry.exec()){
         pop_message("Critical", "Unable to write data to database");
     }
     db.close();
@@ -184,16 +165,11 @@ void MainWindow::pop_message(QString title, QString message)
     QMessageBox msgBox;
     msgBox.setWindowTitle(title);
     msgBox.setText(message);
-    if("Warning" == title)
-    {
+    if("Warning" == title){
         msgBox.setIcon(QMessageBox::Warning);
-    }
-    else if ("Critical" == title)
-    {
+    }else if ("Critical" == title){
         msgBox.setIcon(QMessageBox::Critical);
-    }
-    else
-    {
+    }else{
         msgBox.setIcon(QMessageBox::Information);
     }
     msgBox.setStyleSheet("QLabel {background-color: #3a3a3a; border-width: 0;}");
@@ -203,20 +179,14 @@ void MainWindow::pop_message(QString title, QString message)
 void MainWindow::UpdateStatusBar()
 {
     static int reconnected_count = 0;
-    if(QMqttClient::Connected == m_client->state())
-    {
+    if(QMqttClient::Connected == m_client->state()){
         status->setText(tr("Client connected! Device count: %1").arg(device_counter));
-    }
-    else
-    {
+    }else{
         status->setText(tr("Client disconnected. Device count: %1").arg(device_counter));
-        if(RECONNECT_DELAY_TIME == reconnected_count)
-        {
+        if(RECONNECT_DELAY_TIME == reconnected_count){
             m_client->connectToHost();
             reconnected_count = 0;
-        }
-        else
-        {
+        }else{
             reconnected_count++;
         }
     }
@@ -307,31 +277,24 @@ void MainWindow::ac_control(QFormLayout* layout)
     ac_temp->setVisible(false);
     ac_temp_value->setVisible(false);
 
-
-    QObject::connect(ac_control, &QCheckBox::toggled, this, [=]()
-    {
+    QObject::connect(ac_control, &QCheckBox::toggled, this, [=](){
         bool state = ac_control->isChecked();
         ac_temp->setVisible(state);
         ac_temp_value->setVisible(state);
-        if(state)
-        {
+        if(state){
             ac_control->setText("Disable AC Control");
-        }
-        else
-        {
+        }else{
             ac_control->setText("Enable AC Control");
         }
     });
 
-    QObject::connect(ac_temp, &QSlider::valueChanged, this, [=] ()
-    {
+    QObject::connect(ac_temp, &QSlider::valueChanged, this, [=] (){
         ac_temp_value->setText("Target temperature: " + QString::number(ac_temp->value()) + "°C");
     });
 
     hbox->addWidget(ac_control);
     hbox->addWidget(ac_temp_value);
     hbox->addWidget(ac_temp);
-
     layout->addRow(hbox);
 }
 
@@ -339,7 +302,6 @@ void MainWindow::enable_deepsleep(QFormLayout* layout)
 {
     QHBoxLayout* hbox = new QHBoxLayout();
     hbox->setObjectName(ui->device_id->text() + "/DSLEEP");
-
     QPushButton* ds_control = new QPushButton();
     ds_control->setCheckable(true);
     ds_control->setText("Enable ESP DeepSleep");
@@ -351,43 +313,33 @@ void MainWindow::enable_deepsleep(QFormLayout* layout)
     minutes->setToolTip("Set sleep time in minutes, up to 60");
     minutes->setSuffix("min");
 
-    QObject::connect(ds_control, &QCheckBox::toggled, this, [=]()
-    {
+    QObject::connect(ds_control, &QCheckBox::toggled, this, [=](){
         bool state = ds_control->isChecked();
         minutes->setVisible(state);
-        if(state)
-        {
+        if(state){
             ds_control->setText("Disable ESP DeepSleep");
-        }
-        else
-        {
+        }else{
             ds_control->setText("Enable ESP DeepSleep");
         }
     });
 
     hbox->addWidget(ds_control);
     hbox->addWidget(minutes);
-
     layout->addRow(hbox);
 }
 
 void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
 {
     auto subscription = m_client->subscribe(ui->device_id->text() + "/data");
-    if (!subscription)
-    {
+    QPushButton* device_name;
+
+    if (!subscription){
         pop_message("Error", "Could not subscribe. Is there a valid connection?");
         return;
     }
-
-    QPushButton* device_name;
-
-    if(ui->device_name->text().isEmpty())
-    {
+    if(ui->device_name->text().isEmpty()){
         device_name = new QPushButton(ui->device_id->text());
-    }
-    else
-    {
+    }else{
         device_name = new QPushButton(ui->device_name->text());
     }
 
@@ -424,112 +376,80 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     device_counter++;
 }
 
-void MainWindow::onAddWidget()
-{
-    if(ui->device_id->text().isEmpty())
-    {
+void MainWindow::onAddWidget(){
+    if(ui->device_id->text().isEmpty()){
         pop_message("Warning", "Device ID is required");
         return;
     }
-
-    foreach(QPushButton* i, TopicHash.keys())
-    {
-        if(TopicHash[i] == ui->device_id->text())
-        {
+    foreach(QPushButton* i, TopicHash.keys()){
+        if(TopicHash[i] == ui->device_id->text()){
             pop_message("Warning", "Device already added!");
             return;
         }
     }
-
-    if(device_counter < MAX_DEVICES)
-    {
+    if(device_counter < MAX_DEVICES){
         QHBoxLayout* Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_4->layout());
         QFormLayout* layout = new QFormLayout();
 
-        if(MAX_DEVICES_PER_ROW > frame_1_counter)
-        {
+        if(MAX_DEVICES_PER_ROW > frame_1_counter){
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_1->layout());
             frame_1_counter++;
-        }
-        else if(MAX_DEVICES_PER_ROW > frame_2_counter)
-        {
+        }else if(MAX_DEVICES_PER_ROW > frame_2_counter){
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_2->layout());
             frame_2_counter++;
-        }
-        else if(MAX_DEVICES_PER_ROW > frame_3_counter)
-        {
+        }else if(MAX_DEVICES_PER_ROW > frame_3_counter){
             Hlayout = qobject_cast<QHBoxLayout*>(ui->frame_3->layout());
             frame_3_counter++;
         }
         WeatherStation(layout, Hlayout);
-
         Hlayout->insertLayout(device_counter,layout);
-    }
-    else
-    {
+    }else{
         pop_message("Warning", "Device count reached maximum!");
     }
 }
 
-void deleteWidget(QLayout* layout)
-{
-    while(layout->count() != 0 )
-    {
+void deleteWidget(QLayout* layout){
+    while(layout->count() != 0 ){
         QLayoutItem* item = layout->takeAt(0);
-        if(QWidget* widget = item->widget())
-        {
+        if(QWidget* widget = item->widget()){
             widget->deleteLater();
         }
-        if(QLayout* childLayout = item->layout())
-        {
+        if(QLayout* childLayout = item->layout()){
             deleteWidget(childLayout); //Looks dangerous, I know...
         }
         delete item;
     }
 }
 
-void MainWindow::onRemoveWidget()
-{
+void MainWindow::onRemoveWidget(){
     QPushButton* button = qobject_cast<QPushButton*>(sender());
     QFormLayout* layout = LayoutHash.value(button);
     QHBoxLayout* Hlayout = HLayoutHash.value(button);
     QString topic = TopicHash.value(button);
 
-    m_client->unsubscribe(topic + "/#");
+    m_client->unsubscribe(topic + "/data");
     TopicHash.remove(button);
-
     deleteWidget(layout);
-
     device_counter--;
-    if(Hlayout->objectName() == "horizontalLayout_1")
-    {
+    if(Hlayout->objectName() == "horizontalLayout_1"){
         frame_1_counter--;
-    }
-    else if(Hlayout->objectName() == "horizontalLayout_2")
-    {
+    }else if(Hlayout->objectName() == "horizontalLayout_2"){
         frame_2_counter--;
-    }
-    else if(Hlayout->objectName() == "horizontalLayout_3")
-    {
+    }else if(Hlayout->objectName() == "horizontalLayout_3"){
         frame_3_counter--;
     }
-
 }
 
 void MainWindow::on_actionFullscreen_triggered()
 {
-    if(toggle_fullscreen)
-    {
+    if(toggle_fullscreen){
         this->showNormal();
         toggle_fullscreen = false;
-    }
-    else
-    {
+    }else{
         this->setWindowState(Qt::WindowFullScreen);
         toggle_fullscreen = true;
     }
 }
-
 
 void MainWindow::on_actionMinimize_triggered()
 {
