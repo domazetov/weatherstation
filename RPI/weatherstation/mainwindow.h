@@ -18,11 +18,18 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+typedef struct
+{
+    QLabel* sensor_label;
+    QProgressBar* sensor_bar;
+}QSensor;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
+
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void onAddWidget();
@@ -32,8 +39,10 @@ public:
     void WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout);
     void ac_control(QFormLayout* layout);
     void enable_deepsleep(QFormLayout* layout);
+    void AddToLayout(QSensor* dhth, QSensor* dhtt, QSensor* bmpt, QSensor* bmpp, QFormLayout* layout, QHBoxLayout* Hlayout);
     QLabel* status = new QLabel;
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+
 
 private slots:
 

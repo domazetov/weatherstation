@@ -1,6 +1,7 @@
 #include "website.h"
 
-boolean captivePortal(){
+boolean captivePortal()
+{
 	if (!isIp(server.hostHeader()) && server.hostHeader() != (String(myhostname) + ".local")){
 		LOG_SERIAL.println("Request redirected to captive portal");
 		server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
@@ -11,7 +12,8 @@ boolean captivePortal(){
 	return false;
 }
 
-void handleWifi(){
+void handleWifi()
+{
 	server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 	server.sendHeader("Pragma", "no-cache");
 	server.sendHeader("Expires", "-1");
@@ -50,7 +52,8 @@ void handleWifi(){
 	server.client().stop();
 }
 
-void handleWifiSave(){
+void handleWifiSave()
+{
 	LOG_SERIAL.println("wifi save");
 	server.arg("n").toCharArray(ssid, sizeof(ssid) - 1);
 	server.arg("p").toCharArray(password, sizeof(password) - 1);
@@ -65,7 +68,8 @@ void handleWifiSave(){
 	connect = strlen(ssid) > 0;
 }
 
-void handleNotFound(){
+void handleNotFound()
+{
 	if (captivePortal()){
 		return;
 	}
@@ -88,7 +92,8 @@ void handleNotFound(){
 }
 
 #if ENABLE_IR
-void handleACSave(){
+void handleACSave()
+{
 	LOG_SERIAL.println("AC SAVE");
 	static uint8_t state = 0;
 

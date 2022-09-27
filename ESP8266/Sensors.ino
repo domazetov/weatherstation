@@ -1,4 +1,5 @@
-void read_data(){
+void read_data()
+{
 	int retry_count = 0;
 	char data_buffer[MSG_BUFFER_SIZE];
 	float dhth = dht.getHumidity();

@@ -1,5 +1,6 @@
 #if ENABLE_IR
-boolean receive_ir_signal(decode_results* results){
+boolean receive_ir_signal(decode_results* results)
+{
     boolean ret_val = false;
 
     if (irrecv.decode(results)){
@@ -19,7 +20,8 @@ boolean receive_ir_signal(decode_results* results){
     return ret_val;
 }
 
-boolean send_ir_signal(decode_results* results){
+boolean send_ir_signal(decode_results* results)
+{
     boolean ret_val = false;
     LOG_SERIAL.println(resultToHumanReadableBasic(results));
     decode_type_t ac_protocol = results->decode_type;

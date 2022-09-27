@@ -13,12 +13,6 @@ static int frame_3_counter = 0;
 int m_nMouseClick_X_Coordinate;
 int m_nMouseClick_Y_Coordinate;
 
-typedef struct QSensor
-{
-    QLabel* sensor_label;
-    QProgressBar* sensor_bar;
-}QSensor;
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -86,7 +80,8 @@ void fill_progressbar(QProgressBar* bar, QString unit, float value)
     }
 }
 
-void MainWindow::HandleNewMessage(QString device, const QByteArray &message, QSqlQuery &qry){
+void MainWindow::HandleNewMessage(QString device, const QByteArray &message, QSqlQuery &qry)
+{
     float read_value = 0;
     QString actemphex = QString("FF");
     QString sleephex = QString("FF");
@@ -141,14 +136,8 @@ void MainWindow::onMessageReceived(const QByteArray &message, const QMqttTopicNa
     device.chop(5); // remove /data from name
 
     qry.prepare("INSERT INTO data ("
-                "room,"
-                "device,"
-                "dhtt,"
-                "dhth,"
-                "bmpt,"
-                "bmpp,"
-                "timestamp)"
-                "VALUES (:room, :device, :dhtt, :dhth, :bmpt, :bmpp, :timestamp);");
+        "room," "device," "dhtt," "dhth," "bmpt," "bmpp," "timestamp)"
+        "VALUES (:room, :device, :dhtt, :dhth, :bmpt, :bmpp, :timestamp);");
     HandleNewMessage(device, message, qry);
     qry.bindValue(":device", device);
     qry.bindValue(":room", RoomHash.value(device));
@@ -198,7 +187,7 @@ QSensor dht_humidity()
 {
     QSensor dht_humi;
 
-    dht_humi.sensor_label = new QLabel("Humidity");
+    dht_humi.sensor_label = new QLabel("Humidity:");
     dht_humi.sensor_label->setStyleSheet("QLabel {min-width: 120px;}");
     dht_humi.sensor_bar = new QProgressBar();
     dht_humi.sensor_bar->setFormat("Waiting for update");
@@ -328,19 +317,41 @@ void MainWindow::enable_deepsleep(QFormLayout* layout)
     layout->addRow(hbox);
 }
 
-void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
+void MainWindow::AddToLayout(QSensor* dhth, QSensor* dhtt, QSensor* bmpt, QSensor* bmpp, QFormLayout* layout, QHBoxLayout* Hlayout)
 {
-    auto subscription = m_client->subscribe(ui->device_id->text() + "/data");
     QPushButton* device_name;
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
 
-    if (!subscription){
-        pop_message("Error", "Could not subscribe. Is there a valid connection?");
-        return;
-    }
     if(ui->device_name->text().isEmpty()){
         device_name = new QPushButton(ui->device_id->text());
     }else{
         device_name = new QPushButton(ui->device_name->text());
+    }
+    QObject::connect(device_name, &QPushButton::clicked, this, &MainWindow::onRemoveWidget);
+
+    layout->addRow(device_name);
+    layout->addRow(dhth->sensor_label, dhth->sensor_bar);
+    layout->addRow(dhtt->sensor_label, dhtt->sensor_bar);
+    layout->addRow(bmpt->sensor_label, bmpt->sensor_bar);
+    layout->addRow(bmpp->sensor_label, bmpp->sensor_bar);
+    ac_control(layout);
+    enable_deepsleep(layout);
+    layout->addRow(line);
+
+    RoomHash.insert(ui->device_id->text(), device_name->text());
+    LayoutHash.insert(device_name, layout);
+    HLayoutHash.insert(device_name, Hlayout);
+    TopicHash.insert(device_name, ui->device_id->text());
+}
+
+void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
+{
+    auto subscription = m_client->subscribe(ui->device_id->text() + "/data");
+    if (!subscription){
+        pop_message("Error", "Could not subscribe. Is there a valid connection?");
+        return;
     }
 
     QSensor dht_humi = dht_humidity();
@@ -353,30 +364,12 @@ void MainWindow::WeatherStation(QFormLayout* layout, QHBoxLayout* Hlayout)
     bmp_temp.sensor_bar->setObjectName(ui->device_id->text() + "/BMPT");
     bmp_pres.sensor_bar->setObjectName(ui->device_id->text() + "/BMPP");
 
-    layout->addRow(device_name);
-    layout->addRow(dht_humi.sensor_label, dht_humi.sensor_bar);
-    layout->addRow(dht_temp.sensor_label, dht_temp.sensor_bar);
-    layout->addRow(bmp_temp.sensor_label, bmp_temp.sensor_bar);
-    layout->addRow(bmp_pres.sensor_label, bmp_pres.sensor_bar);
-
-    ac_control(layout);
-    enable_deepsleep(layout);
-
-    QFrame *line = new QFrame();
-    line->setFrameShape(QFrame::HLine);
-    line->setFrameShadow(QFrame::Sunken);
-    layout->addRow(line);
-
-    RoomHash.insert(ui->device_id->text(), device_name->text());
-    LayoutHash.insert(device_name, layout);
-    HLayoutHash.insert(device_name, Hlayout);
-    TopicHash.insert(device_name, ui->device_id->text());
-
-    QObject::connect(device_name, &QPushButton::clicked, this, &MainWindow::onRemoveWidget);
+    AddToLayout(&dht_humi, &dht_temp, &bmp_temp, &bmp_pres, layout, Hlayout);
     device_counter++;
 }
 
-void MainWindow::onAddWidget(){
+void MainWindow::onAddWidget()
+{
     if(ui->device_id->text().isEmpty()){
         pop_message("Warning", "Device ID is required");
         return;
@@ -408,7 +401,8 @@ void MainWindow::onAddWidget(){
     }
 }
 
-void deleteWidget(QLayout* layout){
+void deleteWidget(QLayout* layout)
+{
     while(layout->count() != 0 ){
         QLayoutItem* item = layout->takeAt(0);
         if(QWidget* widget = item->widget()){
@@ -421,7 +415,8 @@ void deleteWidget(QLayout* layout){
     }
 }
 
-void MainWindow::onRemoveWidget(){
+void MainWindow::onRemoveWidget()
+{
     QPushButton* button = qobject_cast<QPushButton*>(sender());
     QFormLayout* layout = LayoutHash.value(button);
     QHBoxLayout* Hlayout = HLayoutHash.value(button);

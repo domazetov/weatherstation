@@ -1,11 +1,13 @@
-void connect_to_wifi(){
+void connect_to_wifi()
+{
 	LOG_SERIAL.println("Connecting as WiFi client.");
 	WiFi.disconnect();
 	WiFi.begin(ssid, password);
 	LOG_SERIAL.printf("Connection status: %u", WiFi.waitForConnectResult());
 }
 
-boolean reconnect_mqtt(){
+boolean reconnect_mqtt()
+{
 	LOG_SERIAL.print("Attempting MQTT connection...");
 
 	String clientId = String(APSSID);
@@ -21,7 +23,8 @@ boolean reconnect_mqtt(){
 	return client.connected();
 }
 
-uint8_t byte2int(byte* data){
+uint8_t byte2int(byte* data)
+{
 	char value[2];
 	value[0]=(char)data[0];
 	value[1]=(char)data[1];
@@ -29,7 +32,8 @@ uint8_t byte2int(byte* data){
 	return strtol(value, NULL, 16);
 }
 
-void mqtt_callback(char* topic, byte* payload, unsigned int length){
+void mqtt_callback(char* topic, byte* payload, unsigned int length)
+{
 	uint8_t changed_sleep_time = 0xFF;
 	uint16_t target_temp = 0xFF;
 
@@ -62,7 +66,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length){
 	send_data = true;
 }
 
-boolean isIp(String str){
+boolean isIp(String str)
+{
 	for (size_t i = 0; i < str.length(); i++){
 		int c = str.charAt(i);
 		if (c != '.' && (c < '0' || c > '9')){
@@ -72,7 +77,8 @@ boolean isIp(String str){
 	return true;
 }
 
-String toStringIp(IPAddress ip){
+String toStringIp(IPAddress ip)
+{
 	String res = "";
 	for (int i = 0; i < 3; i++){
 		res += String((ip >> (8 * i)) & 0xFF) + ".";

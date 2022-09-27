@@ -81,7 +81,8 @@ char subscribe_topic[11];
 uint16_t average_temp;
 bool send_data = true;
 
-void setup(){
+void setup()
+{
 	pinMode(SETUP_PIN, INPUT);
 	pinMode(LED_PIN, OUTPUT);
 #if ENABLE_IR
@@ -136,7 +137,8 @@ void setup(){
 	temp_string.toCharArray(subscribe_topic, sizeof(subscribe_topic));
 }
 
-void reset_send_data(){
+void reset_send_data()
+{
 	uint32_t currentmillis = millis();
 	static uint32_t previousmillis = 0;
 	if(currentmillis - previousmillis >= NORMAL_SLEEP){
@@ -147,7 +149,8 @@ void reset_send_data(){
 	}
 }
 
-void loop(){
+void loop()
+{
 	if(connect){
 		LOG_SERIAL.println("Connection requested.");
 		connect = false;

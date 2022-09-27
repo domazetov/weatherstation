@@ -1,4 +1,5 @@
-void load_from_eeprom(){
+void load_from_eeprom()
+{
 	EEPROM.begin(512);
 	EEPROM.get(0, ssid);
 	EEPROM.get(0 + sizeof(ssid), password);
