@@ -5,7 +5,6 @@ boolean receive_ir_signal(decode_results* results)
 
     if (irrecv.decode(results)){
         LOG_SERIAL.println("Captured!");
-        save_to_eeprom();
         delay(1000);
         irrecv.resume();
         LOG_SERIAL.println(resultToHumanReadableBasic(results));

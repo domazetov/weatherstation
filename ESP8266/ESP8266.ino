@@ -16,8 +16,8 @@
 #include <IRutils.h>
 
 //Macros
-#define DEVICEID                "WS2"
-#define ENABLE_IR               false
+#define DEVICEID                "WS1"
+#define ENABLE_IR               true
 #ifndef APSSID
 #define APSSID                  "WeatherStation1"
 #define APPSK                   "12345678"

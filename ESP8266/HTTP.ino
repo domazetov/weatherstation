@@ -138,7 +138,7 @@ void handleACSave()
 	case 2:
 		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
 		Page += String(F("<p>OFF Protocol: ")) + typeToString(ac_off_signal.decode_type).c_str() + F("</p>");
-		Page += "<p><b>Setup Done</b></p><br/><form method='get' action='wifi'><button type='submit'>Setup WIFI</button></form></center></body></main></html>";
+		Page += "<p><b>Setup Done</b></p><br/><form method='get' action='wifi'><button type='submit'>Save & Setup WIFI</button></form></center></body></main></html>";
 		server.send(200, "text/html", Page);
 		state = 0;
 		break;
