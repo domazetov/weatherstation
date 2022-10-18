@@ -1,4 +1,5 @@
 #include "website.h"
+boolean ir_scan_active = false;
 
 boolean captivePortal()
 {
@@ -21,31 +22,32 @@ void handleWifi()
 	String Page;
 	Page += main_head;
 	Page += main_body;
-
-	if (server.client().localIP() == apip){
-		Page += String(F("<p>You are connected through the AP: ")) + softap_ssid + F("</p>");
-	}else{
-		Page += String(F("<p>You are connected through the WiFi network: ")) + ssid + F("</p>");
-	}
-
-	Page += "<table><tr><th align='left'>Current configuration:</th></tr>";
-#if ENABLE_IR
-	Page += String(F("<p>AC Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
-#endif
-	Page += F("<tr><td>SSID ") + String(ssid) + F("</td></tr><tr><td>IP ") + toStringIp(WiFi.localIP()) + F("</td></tr>");
-	Page += F("<tr><td>Broker IP ") + String(mqtt_server) + F("</td></tr></table>");
-
-	Page += "<table><tr><th align='left'>WiFi list:</th></tr>";
-	LOG_SERIAL.println("scan start");
-	int n = WiFi.scanNetworks();
-	LOG_SERIAL.println("scan done");
-
-	if (n > 0){
-		for (int i = 0; i < n; i++){
-			Page += String(F("\r\n<tr><td>")) + WiFi.SSID(i) + F("</td></tr>");
+	if(!ir_scan_active){
+		if (server.client().localIP() == apip){
+			Page += String(F("<p>You are connected through the AP: ")) + softap_ssid + F("</p>");
+		}else{
+			Page += String(F("<p>You are connected through the WiFi network: ")) + ssid + F("</p>");
 		}
-	}else{
-		Page += "<tr><td>No WiFi found</td></tr>";
+
+		Page += "<table><tr><th align='left'>Current configuration:</th></tr>";
+#if ENABLE_IR
+		Page += String(F("<p>AC Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
+#endif
+		Page += F("<tr><td>SSID ") + String(ssid) + F("</td></tr><tr><td>IP ") + toStringIp(WiFi.localIP()) + F("</td></tr>");
+		Page += F("<tr><td>Broker IP ") + String(mqtt_server) + F("</td></tr></table>");
+
+		Page += "<table><tr><th align='left'>WiFi list:</th></tr>";
+		LOG_SERIAL.println("scan start");
+		int n = WiFi.scanNetworks();
+		LOG_SERIAL.println("scan done");
+
+		if (n > 0){
+			for (int i = 0; i < n; i++){
+				Page += String(F("\r\n<tr><td>")) + WiFi.SSID(i) + F("</td></tr>");
+			}
+		}else{
+			Page += "<tr><td>No WiFi found</td></tr>";
+		}
 	}
 	Page += "</body></main></html>";
 	server.send(200, "text/html", Page);
@@ -111,6 +113,7 @@ void handleACSave()
 
 	switch (state){
 	case 0:
+		ir_scan_active = true;
 		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
 		Page += "<p><b>Send AC ON</b></p></center></body></main></html>";
 		server.send(200, "text/html", Page);
@@ -136,6 +139,7 @@ void handleACSave()
 		}
 		break;
 	case 2:
+		ir_scan_active = false;
 		Page += String(F("<p>ON Protocol: ")) + typeToString(ac_on_signal.decode_type).c_str() + F("</p>");
 		Page += String(F("<p>OFF Protocol: ")) + typeToString(ac_off_signal.decode_type).c_str() + F("</p>");
 		Page += "<p><b>Setup Done</b></p><br/><form method='get' action='wifi'><button type='submit'>Save & Setup WIFI</button></form></center></body></main></html>";
